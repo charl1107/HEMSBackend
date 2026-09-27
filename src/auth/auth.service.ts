@@ -82,7 +82,7 @@ export class AuthService {
 
   async changePassword(
     userId: string,
-    currentPassword: string,
+    currentPassword: string | undefined,
     newPassword: string,
   ): Promise<SafeUser> {
     if (newPassword.length < 8) {
@@ -95,9 +95,16 @@ export class AuthService {
     if (!user || !user.isActive) {
       throw new UnauthorizedException();
     }
-    const matches = await bcrypt.compare(currentPassword, user.passwordHash);
-    if (!matches) {
-      throw new UnauthorizedException('Current password is incorrect');
+    if (user.mustChangePassword) {
+      // A forced first-login change is authorized by the authenticated session.
+    } else {
+      if (!currentPassword) {
+        throw new BadRequestException('Current password is required');
+      }
+      const matches = await bcrypt.compare(currentPassword, user.passwordHash);
+      if (!matches) {
+        throw new UnauthorizedException('Current password is incorrect');
+      }
     }
     const passwordHash = await bcrypt.hash(newPassword, 10);
     const updated = await this.prisma.user.update({
@@ -139,7 +146,9 @@ export class AuthService {
     res.cookie(REFRESH_COOKIE, rawToken, {
       httpOnly: true,
       secure: true,
-      sameSite: 'strict',
+      // Vercel and Render use different sites; browsers require None for
+      // credentialed cross-site refresh requests. Secure is required with None.
+      sameSite: 'none',
       path: '/auth',
       maxAge: REFRESH_TOKEN_TTL_MS,
     });

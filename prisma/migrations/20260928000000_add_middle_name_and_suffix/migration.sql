@@ -1,0 +1,3 @@
+ALTER TABLE "User"
+ADD COLUMN "middleName" TEXT,
+ADD COLUMN "suffix" TEXT;

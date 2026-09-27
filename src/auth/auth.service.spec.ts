@@ -134,6 +134,13 @@ describe('AuthService.changePassword', () => {
     expect(result).not.toHaveProperty('passwordHash');
   });
 
+  it('allows first-time password changes without the current password', async () => {
+    const result = await service.changePassword('user-1', undefined, 'NewPass456!');
+    const updateArg = prisma.user.update.mock.calls[0][0];
+    await expect(bcrypt.compare('NewPass456!', updateArg.data.passwordHash)).resolves.toBe(true);
+    expect(result.mustChangePassword).toBe(false);
+  });
+
   it('rejects wrong current password', async () => {
     await expect(
       service.changePassword('user-1', 'WrongPass1!', 'NewPass456!'),

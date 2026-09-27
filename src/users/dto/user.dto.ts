@@ -1,6 +1,7 @@
 import {
   IsBoolean,
   IsEmail,
+  IsIn,
   IsInt,
   IsOptional,
   IsString,
@@ -21,9 +22,17 @@ export class CreateUserDto {
   @MinLength(1)
   firstName!: string;
 
+  @IsOptional()
+  @IsString()
+  middleName?: string;
+
   @IsString()
   @MinLength(1)
   lastName!: string;
+
+  @IsOptional()
+  @IsString()
+  suffix?: string;
 
   @IsOptional()
   @IsBoolean()
@@ -77,6 +86,12 @@ export class UpdateUserDto {
 
 export class AssignRoleDto {
   @IsString()
-  @MinLength(1)
+  @IsIn([
+    'Department Head',
+    'Event Coordinator',
+    'Instructor',
+    'Student Officer',
+    'Student',
+  ])
   role!: string;
 }

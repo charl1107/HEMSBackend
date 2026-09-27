@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
@@ -43,6 +44,9 @@ export class UsersService {
       throw new ConflictException('Email already in use');
     }
     const roleNames = [...new Set(dto.roles ?? [])];
+    if (roleNames.includes('Admin')) {
+      throw new BadRequestException('Admin role can only be granted directly in the database');
+    }
     const isStudent = roleNames.includes('Student');
     if (isStudent && !dto.studentId) {
       throw new ConflictException('studentId is required for Student accounts');
@@ -69,7 +73,9 @@ export class UsersService {
         email: dto.email,
         passwordHash,
         firstName: dto.firstName,
+        middleName: dto.middleName?.trim() || null,
         lastName: dto.lastName,
+        suffix: dto.suffix?.trim() || null,
         isActive: dto.isActive ?? true,
         studentId: dto.studentId,
         program: dto.program,
@@ -130,13 +136,28 @@ export class UsersService {
     }
     const link = await this.prisma.userRole.findUnique({
       where: { userId_roleId: { userId: id, roleId } },
+      include: { role: true },
     });
     if (!link) {
       throw new NotFoundException('Role assignment not found');
+    }
+    if (link.role.name === 'Student' || link.role.name === 'Admin') {
+      throw new BadRequestException(`${link.role.name} role cannot be removed`);
     }
     await this.prisma.userRole.delete({
       where: { userId_roleId: { userId: id, roleId } },
     });
     return this.findOne(id);
+  }
+
+  async removeRoleByName(id: string, roleName: string): Promise<SafeUser> {
+    if (roleName === 'Student' || roleName === 'Admin') {
+      throw new BadRequestException(`${roleName} role cannot be removed`);
+    }
+    const role = await this.prisma.role.findUnique({ where: { name: roleName } });
+    if (!role) {
+      throw new NotFoundException(`Role "${roleName}" not found`);
+    }
+    return this.removeRole(id, role.id);
   }
 }
