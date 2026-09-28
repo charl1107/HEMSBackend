@@ -142,6 +142,10 @@ describe('AuthService.changePassword', () => {
   });
 
   it('rejects wrong current password', async () => {
+    prisma.user.findUnique.mockResolvedValue({
+      ...userWithRoles,
+      mustChangePassword: false,
+    });
     await expect(
       service.changePassword('user-1', 'WrongPass1!', 'NewPass456!'),
     ).rejects.toThrow(UnauthorizedException);

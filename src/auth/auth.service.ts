@@ -39,7 +39,7 @@ export class AuthService {
     email: string,
     password: string,
     res: Response,
-  ): Promise<{ accessToken: string; user: SafeUser }> {
+  ): Promise<{ accessToken: string; refreshToken: string; user: SafeUser }> {
     const user = await this.validateUser(email, password);
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
@@ -49,6 +49,7 @@ export class AuthService {
 
   async refresh(rawToken: string | undefined, res: Response): Promise<{
     accessToken: string;
+    refreshToken: string;
     user: SafeUser;
   }> {
     const stored = await this.findValidRefreshToken(rawToken);
@@ -152,7 +153,7 @@ export class AuthService {
       path: '/auth',
       maxAge: REFRESH_TOKEN_TTL_MS,
     });
-    return { accessToken, user };
+    return { accessToken, refreshToken: rawToken, user };
   }
 
   private async findValidRefreshToken(rawToken: string | undefined) {

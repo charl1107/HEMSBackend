@@ -13,6 +13,7 @@ import { Public } from '../common/decorators/public.decorator.js';
 import type { AuthUser } from '../common/auth-user.js';
 import { AuthService, REFRESH_COOKIE } from './auth.service.js';
 import { LoginDto } from './dto/login.dto.js';
+import { RefreshDto } from './dto/refresh.dto.js';
 import { ChangePasswordDto } from './dto/change-password.dto.js';
 import type { SafeUser } from '../common/utils/sanitize-user.js';
 
@@ -27,7 +28,7 @@ export class AuthController {
   login(
     @Body() dto: LoginDto,
     @Res({ passthrough: true }) res: Response,
-  ): Promise<{ accessToken: string; user: SafeUser }> {
+  ): Promise<{ accessToken: string; refreshToken: string; user: SafeUser }> {
     return this.authService.login(dto.email, dto.password, res);
   }
 
@@ -36,10 +37,12 @@ export class AuthController {
   @HttpCode(200)
   refresh(
     @Req() req: Request,
+    @Body() dto: RefreshDto,
     @Res({ passthrough: true }) res: Response,
   ) {
     const cookies = (req.cookies ?? {}) as Record<string, string | undefined>;
-    return this.authService.refresh(cookies[REFRESH_COOKIE], res);
+    const token = dto?.refreshToken || cookies[REFRESH_COOKIE];
+    return this.authService.refresh(token, res);
   }
 
   @Public()
@@ -47,10 +50,12 @@ export class AuthController {
   @HttpCode(204)
   async logout(
     @Req() req: Request,
+    @Body() dto: RefreshDto,
     @Res({ passthrough: true }) res: Response,
   ): Promise<void> {
     const cookies = (req.cookies ?? {}) as Record<string, string | undefined>;
-    await this.authService.logout(cookies[REFRESH_COOKIE], res);
+    const token = dto?.refreshToken || cookies[REFRESH_COOKIE];
+    await this.authService.logout(token, res);
   }
 
   @Get('me')
