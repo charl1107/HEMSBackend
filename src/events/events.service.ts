@@ -39,6 +39,35 @@ import {
 export type { ConflictHit } from './conflict.js';
 export const EVENT_INCLUDE = { eventType: true } as const;
 
+/**
+ * The anonymous public catalog and detail pages (F18) render exactly the
+ * fields below — derived from `PublicEventListView.vue` (id, title, venue,
+ * description, status, eventDate, coverImageUrl) and `PublicEventDetailView.vue`
+ * (+ eventType.name) — so the two public methods ask Prisma for this subset
+ * instead of the full row. `createdById`, `eventTypeId`, `updatedAt` and the
+ * rest are internal and must never leave the server unauthenticated.
+ * Authenticated paths keep `EVENT_INCLUDE` and their full-row shape.
+ */
+export const PUBLIC_EVENT_SELECT = {
+  id: true,
+  title: true,
+  description: true,
+  eventDate: true,
+  venue: true,
+  coverImageUrl: true,
+  status: true,
+  eventType: { select: { name: true } },
+} as const satisfies Prisma.EventSelect;
+
+/** A public catalog/detail event exactly as `PUBLIC_EVENT_SELECT` shapes it. */
+export type PublicEvent = Pick<
+  Event,
+  'id' | 'title' | 'description' | 'eventDate' | 'venue' | 'coverImageUrl' | 'status'
+> & { eventType: { name: string } | null };
+
+/** Statuses POST /events/:id/advance may move an event to (F17 lifecycle). */
+const ADVANCE_TARGET_STATUSES = ['Ongoing', 'Completed'] as const;
+
 export type EventWithRelations = Event & { eventType: EventType | null };
 
 export interface EventResult extends EventWithRelations {
@@ -184,7 +213,7 @@ export class EventsService {
     const conflictWarning = await this.buildConflictWarning(
       venue,
       eventDate,
-      undefined,
+      event.id,
     );
     return { ...event, conflictWarning };
   }
@@ -242,6 +271,39 @@ export class EventsService {
     await this.prisma.event.delete({ where: { id } });
   }
 
+  /**
+   * POST /events/:id/advance — moves an event along the lifecycle
+   * Planning → Ongoing → Completed (F17). Authorization mirrors update():
+   * owner or a REVIEW_EVENT_ROLES holder. The write is guarded with the
+   * optimistic-concurrency where-clause from approvals.service.ts
+   * `transition()`: it names the status read from the row, so a concurrent
+   * change between read and write matches no row and yields 409.
+   */
+  async advance(
+    id: string,
+    to: Event['status'],
+    user: AuthUser,
+  ): Promise<EventWithRelations> {
+    const event = await this.findOne(id);
+    this.assertCanEdit(event, user);
+    if (!(ADVANCE_TARGET_STATUSES as readonly string[]).includes(to)) {
+      throw new ConflictException('Advance target must be Ongoing or Completed');
+    }
+    if (!canTransition(event.status, to)) {
+      throw new ConflictException(
+        `Invalid event status transition ${event.status} → ${to}`,
+      );
+    }
+    const { count } = await this.prisma.event.updateMany({
+      where: { id, status: event.status },
+      data: { status: to },
+    });
+    if (count === 0) {
+      throw new ConflictException('event status changed');
+    }
+    return this.findOne(id);
+  }
+
   async setCover(
     id: string,
     file: CoverUploadFile | undefined,
@@ -286,7 +348,7 @@ export class EventsService {
     });
   }
 
-  async findPublicMany(query?: EventListQueryDto): Promise<Page<EventWithRelations>> {
+  async findPublicMany(query?: EventListQueryDto): Promise<Page<PublicEvent>> {
     const baseWhere: Prisma.EventWhereInput = {
       status: { in: [...PUBLIC_EVENT_STATUSES] },
     };
@@ -300,7 +362,7 @@ export class EventsService {
     const [items, total] = await Promise.all([
       this.prisma.event.findMany({
         where,
-        include: EVENT_INCLUDE,
+        select: PUBLIC_EVENT_SELECT,
         orderBy: [{ eventDate: 'desc' }, { createdAt: 'desc' }],
         take,
         skip,
@@ -310,10 +372,10 @@ export class EventsService {
     return { items, total };
   }
 
-  async findPublicOne(id: string): Promise<EventWithRelations> {
+  async findPublicOne(id: string): Promise<PublicEvent> {
     const event = await this.prisma.event.findFirst({
       where: { id, status: { in: [...PUBLIC_EVENT_STATUSES] } },
-      include: EVENT_INCLUDE,
+      select: PUBLIC_EVENT_SELECT,
     });
     if (!event) {
       throw new NotFoundException('Event not found');

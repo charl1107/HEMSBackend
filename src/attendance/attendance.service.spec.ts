@@ -233,16 +233,23 @@ describe('AttendanceService', () => {
       expect(store.prisma.attendance.update).toHaveBeenCalledTimes(1);
     });
 
-    it('accepts duplicate clientRecordId within one batch as one row', async () => {
+    it('rejects a duplicate clientRecordId within one batch instead of merging it (F11)', async () => {
       const record = syncRecord();
 
       const result = await service.sync(supervisor(), {
         records: [record, record],
       });
 
-      expect(result.accepted).toEqual(['client-1', 'client-1']);
-      expect(result.rejected).toEqual([]);
+      expect(result.accepted).toEqual(['client-1']);
+      expect(result.rejected).toEqual([
+        {
+          clientRecordId: 'client-1',
+          reason: 'duplicate clientRecordId in the same batch',
+        },
+      ]);
       expect(store.rows).toHaveLength(1);
+      expect(store.prisma.attendance.create).toHaveBeenCalledTimes(1);
+      expect(store.prisma.attendance.update).not.toHaveBeenCalled();
     });
 
     it('attaches a new clientRecordId to an existing participant row', async () => {
@@ -327,12 +334,12 @@ describe('AttendanceService', () => {
   });
 
   describe('event Ongoing gate and late-fix', () => {
-    it('rejects sync records when event is not Ongoing and caller is not Coordinator', async () => {
+    it('rejects sync records when event is not Ongoing and the caller has no late-fix role', async () => {
       store.prisma.event.findUnique.mockResolvedValue(
         ongoingEvent({ status: 'Planning' as EventStatus }),
       );
 
-      const result = await service.sync(supervisor(), {
+      const result = await service.sync(supervisor(['Student Officer']), {
         records: [syncRecord()],
       });
 
@@ -346,13 +353,13 @@ describe('AttendanceService', () => {
       expect(store.prisma.attendance.create).not.toHaveBeenCalled();
     });
 
-    it('rejects online time-in when event is not Ongoing (409) for non-Coordinator supervisor', async () => {
+    it('rejects online time-in when event is not Ongoing (409) for a supervisor without the late-fix role', async () => {
       store.prisma.event.findUnique.mockResolvedValue(
         ongoingEvent({ status: 'Completed' as EventStatus }),
       );
 
       await expect(
-        service.timeIn('evt-1', supervisor(['Admin']), {
+        service.timeIn('evt-1', supervisor(['Instructor']), {
           participantId: 'p-1',
         }),
       ).rejects.toThrow(ConflictException);
@@ -380,6 +387,34 @@ describe('AttendanceService', () => {
 
       await expect(
         service.timeIn('evt-1', coordinator(), { participantId: 'p-1' }),
+      ).resolves.toEqual(
+        expect.objectContaining({ status: 'Present', participantId: 'p-1' }),
+      );
+      expect(store.prisma.attendance.create).toHaveBeenCalledTimes(1);
+    });
+
+    it('allows Admin late-fix time-in after completion (F10)', async () => {
+      store.prisma.event.findUnique.mockResolvedValue(
+        ongoingEvent({ status: 'Completed' as EventStatus }),
+      );
+
+      await expect(
+        service.timeIn('evt-1', supervisor(['Admin']), { participantId: 'p-1' }),
+      ).resolves.toEqual(
+        expect.objectContaining({ status: 'Present', participantId: 'p-1' }),
+      );
+      expect(store.prisma.attendance.create).toHaveBeenCalledTimes(1);
+    });
+
+    it('allows Department Head late-fix time-in after completion (F10)', async () => {
+      store.prisma.event.findUnique.mockResolvedValue(
+        ongoingEvent({ status: 'Completed' as EventStatus }),
+      );
+
+      await expect(
+        service.timeIn('evt-1', supervisor(['Department Head']), {
+          participantId: 'p-1',
+        }),
       ).resolves.toEqual(
         expect.objectContaining({ status: 'Present', participantId: 'p-1' }),
       );

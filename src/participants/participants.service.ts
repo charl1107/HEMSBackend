@@ -59,8 +59,8 @@ export class ParticipantsService {
     dto: AddParticipantDto,
   ): Promise<ParticipantWithUser> {
     const event = await this.findEvent(eventId);
-    this.assertStatusGate(event);
     this.assertCanManageRoster(event, auth);
+    this.assertStatusGate(event);
     const externalName = dto.externalName?.trim();
     const userId = dto.userId?.trim();
 
@@ -112,8 +112,8 @@ export class ParticipantsService {
 
   async remove(eventId: string, id: string, auth: AuthUser): Promise<void> {
     const event = await this.findEvent(eventId);
-    this.assertStatusGate(event);
     this.assertCanManageRoster(event, auth);
+    this.assertStatusGate(event);
     const participant = await this.prisma.participant.findFirst({
       where: { id, eventId },
     });

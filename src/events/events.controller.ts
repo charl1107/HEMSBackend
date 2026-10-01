@@ -4,6 +4,7 @@ import {
   Delete,
   ForbiddenException,
   Get,
+  HttpCode,
   Param,
   Post,
   Put,
@@ -26,6 +27,7 @@ import {
   SubmitForApprovalDto,
 } from '../approvals/dto/approval.dto.js';
 import {
+  AdvanceEventDto,
   CreateEventDto,
   EventListQueryDto,
   UpdateEventDto,
@@ -103,6 +105,21 @@ export class EventsController {
   @Roles(...SUBMIT_EVENT_ROLES)
   removeCover(@Param('id') id: string, @Req() req: RequestWithUser) {
     return this.eventsService.removeCover(id, req.user);
+  }
+
+  /** Lifecycle advance (Planning → Ongoing → Completed, F17). Authorization
+   *  lives in the service: owner or a REVIEW_EVENT_ROLES holder. */
+  @Post(':id/advance')
+  @HttpCode(200)
+  advance(
+    @Param('id') id: string,
+    @Body() dto: AdvanceEventDto,
+    @Req() req: RequestWithUser,
+  ) {
+    if (!req.user) {
+      throw new ForbiddenException('Authentication required');
+    }
+    return this.eventsService.advance(id, dto.to, req.user);
   }
 
   @Post(':id/submit')

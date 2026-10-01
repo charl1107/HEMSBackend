@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';import { Observable, tap } from 'rxjs';
 import type { Request, Response } from 'express';
 import { AuditService } from './audit.service.js';
+import { sanitizeAuditBody } from './sanitize.js';
 import type { AuthUser } from '../common/auth-user.js';
 
 const AUDITED_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
@@ -50,8 +51,8 @@ export class AuditInterceptor implements NestInterceptor {
     void this.audit.log({
       userId: request.user?.userId ?? null,
       method: request.method,
-      path: request.originalUrl ?? request.url,
-      body: request.body,
+      path: (request.originalUrl ?? request.url).split(/[?#]/)[0],
+      body: sanitizeAuditBody(request.body),
       statusCode,
     });
   }

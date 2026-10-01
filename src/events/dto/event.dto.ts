@@ -30,6 +30,7 @@ export class CreateEventDto {
   venue!: string;
 
   @IsOptional()
+  @Transform(({ value }) => (value === '' ? undefined : value))
   @IsString()
   @MinLength(1)
   department?: string;
@@ -63,6 +64,7 @@ export class UpdateEventDto {
   venue?: string;
 
   @IsOptional()
+  @Transform(({ value }) => (value === '' ? undefined : value))
   @IsString()
   @MinLength(1)
   department?: string;
@@ -74,6 +76,16 @@ export class UpdateEventDto {
   @IsOptional()
   @IsString()
   eventTypeId?: string;
+}
+
+/**
+ * Body of POST /events/:id/advance. Accepts any real event status so the
+ * service can answer lifecycle-only targets with 409 (not 400); values that
+ * are not an EventStatus at all still fail validation with 400.
+ */
+export class AdvanceEventDto {
+  @IsIn([...ALL_EVENT_STATUSES])
+  to!: EventStatus;
 }
 
 export class EventListQueryDto extends PageQueryDto {

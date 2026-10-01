@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { ConfigService } from '@nestjs/config';
 import {
   DEV_JWT_SECRET_FALLBACK,
@@ -111,10 +111,22 @@ describe('bootstrap rejects production without JWT_SECRET', () => {
     }
   });
 
-  it('fails AppModule compile when JWT_SECRET is unset', async () => {
-    const { Test } = await import('@nestjs/testing');
-    const { AppModule } = await import('../app.module.js');
+  // Loaded in beforeAll: pulling the entire app graph out of module cache is
+  // cold I/O, not the behaviour under test. Charging it to the it() timeout is
+  // what made this spec fail (30s exceeded) whenever the suite ran under load.
+  // Secret resolution happens in JwtModule's async factory at compile(), i.e.
+  // inside the test, so loading here (before NODE_ENV is forced) is safe.
+  // The explicit hook budget matters: hooks default to 10s, and a cold import
+  // of the whole graph regularly takes longer than that on this machine.
+  let Test: (typeof import('@nestjs/testing'))['Test'];
+  let AppModule: (typeof import('../app.module.js'))['AppModule'];
 
+  beforeAll(async () => {
+    Test = (await import('@nestjs/testing')).Test;
+    AppModule = (await import('../app.module.js')).AppModule;
+  }, 60_000);
+
+  it('fails AppModule compile when JWT_SECRET is unset', async () => {
     await expect(
       Test.createTestingModule({ imports: [AppModule] }).compile(),
     ).rejects.toThrow(/JWT_SECRET/);

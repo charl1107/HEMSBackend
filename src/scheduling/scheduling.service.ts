@@ -11,6 +11,7 @@ import {
   assertPlanningStatusGate,
   findPlanningEvent,
 } from '../common/planning-access.js';
+import { PUBLIC_EVENT_STATUSES } from '../events/events.constants.js';
 import { CreateScheduleDto, UpdateScheduleDto } from './dto/schedule.dto.js';
 
 @Injectable()
@@ -23,6 +24,29 @@ export class SchedulingService {
       where: { eventId },
       orderBy: { startTime: 'asc' },
     });
+  }
+
+  /**
+   * Anonymous read for the public detail page (F31). Applies the exact same
+   * status gate as `EventsService.findPublicOne` — the filter lives in SQL, so
+   * a Draft/Rejected/Cancelled or missing event is a 404 before any schedule
+   * row is read — and returns schedule rows only, never event fields.
+   */
+  async findPublicSchedule(
+    eventId: string,
+  ): Promise<{ items: EventSchedule[] }> {
+    const event = await this.prisma.event.findFirst({
+      where: { id: eventId, status: { in: [...PUBLIC_EVENT_STATUSES] } },
+      select: { id: true },
+    });
+    if (!event) {
+      throw new NotFoundException('Event not found');
+    }
+    const items = await this.prisma.eventSchedule.findMany({
+      where: { eventId },
+      orderBy: { startTime: 'asc' },
+    });
+    return { items };
   }
 
   async create(

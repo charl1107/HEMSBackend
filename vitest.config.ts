@@ -9,5 +9,14 @@ export default defineConfig({
     globals: true,
     root: './',
     include: ['**/*.spec.ts'],
+    // N37c: thresholds sit just under current reality (75.21% stmts /
+    // 75.01% lines measured on the 421-test unit suite) so coverage
+    // regressions fail `npm run test:cov`.
+    coverage: {
+      provider: 'v8',
+      statements: 70,
+      lines: 70,
+      reporter: ['text'],
+    },
   },
 });

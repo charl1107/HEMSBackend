@@ -1,11 +1,4 @@
-const AUDIT_DENYLIST = new Set([
-  'password',
-  'password_hash',
-  'passwordhash',
-  'token',
-  'refreshtoken',
-  'authorization',
-]);
+const AUDIT_DENYLIST = /(password|passwd|token|secret|authorization|apikey|api_key|otp|pin)/i;
 
 export function sanitizeAuditBody(body: unknown): unknown {
   if (Array.isArray(body)) {
@@ -16,7 +9,7 @@ export function sanitizeAuditBody(body: unknown): unknown {
     for (const [key, value] of Object.entries(
       body as Record<string, unknown>,
     )) {
-      if (AUDIT_DENYLIST.has(key.toLowerCase())) {
+      if (AUDIT_DENYLIST.test(key)) {
         continue;
       }
       out[key] = sanitizeAuditBody(value);

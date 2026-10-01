@@ -3,9 +3,23 @@ import { mkdir, readFile, unlink, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 
 export const DOCUMENT_STORAGE = 'DOCUMENT_STORAGE';
-export const DOCUMENTS_ROOT = join(process.cwd(), 'stored-documents');
+/**
+ * Default root of the local document store — unchanged production behaviour
+ * (`stored-documents/` under the process working directory).
+ */
+export const DEFAULT_DOCUMENTS_ROOT = join(process.cwd(), 'stored-documents');
 export const SIGNED_URL_TTL_SECONDS = 300;
 export const DEFAULT_SUPABASE_BUCKET = 'event-documents';
+
+/**
+ * Where files live on disk. Read at call time (not module-load time) so the
+ * `DOCUMENTS_ROOT` env var can be set after this module is already imported —
+ * e.g. in a test harness `beforeAll` pointing the suite at a fresh temp dir.
+ * Production never sets the var, so the default is used there.
+ */
+export function documentsRoot(): string {
+  return process.env.DOCUMENTS_ROOT || DEFAULT_DOCUMENTS_ROOT;
+}
 
 export type DocumentDownload =
   | { kind: 'buffer'; buffer: Buffer }
@@ -35,7 +49,7 @@ export function documentKeyToDiskPath(key: string): string | null {
   if (!KEY_PATTERN.test(key)) {
     return null;
   }
-  return join(DOCUMENTS_ROOT, ...key.split('/'));
+  return join(documentsRoot(), ...key.split('/'));
 }
 
 export class LocalDocumentStorage implements DocumentStorage {

@@ -92,13 +92,17 @@ describe('UsersService.create student', () => {
   });
 
   it('does not set mustChangePassword for non-student', async () => {
-    prisma.role.findMany.mockResolvedValue([{ id: 'r-admin', name: 'Admin' }]);
+    // UsersService.create rejects 'Admin' (DB-only grant), so use a different
+    // non-student role to reach the mustChangePassword branch.
+    prisma.role.findMany.mockResolvedValue([
+      { id: 'r-instructor', name: 'Instructor' },
+    ]);
     await service.create({
       email: 'a@x.com',
       password: 'ChangeMe123!',
       firstName: 'A',
       lastName: 'B',
-      roles: ['Admin'],
+      roles: ['Instructor'],
     });
     const data = prisma.user.create.mock.calls[0][0].data;
     expect(data.mustChangePassword).toBe(false);

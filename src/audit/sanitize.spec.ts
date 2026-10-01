@@ -50,6 +50,21 @@ describe('audit denylist', () => {
     const body = { firstName: 'Demo', isActive: true, count: 3 };
     expect(sanitizeAuditBody(body)).toEqual(body);
   });
+
+  it('strips pattern-matched keys regardless of spelling or case (F23)', () => {
+    const result = sanitizeAuditBody({
+      accessToken: 'a',
+      Auth_Token: 'b',
+      Secret: 'c',
+      apiKey: 'd',
+      OTP: 'e',
+      pin: 'f',
+      passwd: 'g',
+      nested: { level2: { level3: { auth_token: 'h', label: 'kept' } } },
+    });
+
+    expect(result).toEqual({ nested: { level2: { level3: { label: 'kept' } } } });
+  });
 });
 
 describe('AuditService', () => {

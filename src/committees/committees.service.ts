@@ -53,8 +53,8 @@ export class CommitteesService {
     dto: CreateCommitteeDto,
   ): Promise<CommitteeWithMembers> {
     const event = await this.findEvent(eventId);
-    this.assertStatusGate(event);
     this.assertCanManageCommittees(event, auth);
+    this.assertStatusGate(event);
     const name = dto.name.trim();
     const existing = await this.prisma.committee.findFirst({
       where: { eventId, name: { equals: name, mode: 'insensitive' } },
@@ -82,8 +82,8 @@ export class CommitteesService {
     dto: AddCommitteeMemberDto,
   ): Promise<CommitteeWithMembers> {
     const event = await this.findEvent(eventId);
-    this.assertStatusGate(event);
     this.assertCanManageCommittees(event, auth);
+    this.assertStatusGate(event);
     const committee = await this.findCommittee(eventId, committeeId);
     const user = await this.prisma.user.findUnique({
       where: { id: dto.userId },
@@ -114,8 +114,8 @@ export class CommitteesService {
     auth: AuthUser,
   ): Promise<void> {
     const event = await this.findEvent(eventId);
-    this.assertStatusGate(event);
     this.assertCanManageCommittees(event, auth);
+    this.assertStatusGate(event);
     await this.findCommittee(eventId, committeeId);
     const member = await this.prisma.committeeMember.findUnique({
       where: { committeeId_userId: { committeeId, userId } },

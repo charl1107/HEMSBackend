@@ -15,6 +15,11 @@ export function csvEscape(value: unknown): string {
   } else {
     text = JSON.stringify(value) ?? '';
   }
+  // CWE-1236: neutralise spreadsheet formula injection (OWASP) by prefixing
+  // a single quote. Applied after `text` is finalised and before wrapping.
+  if (/^[=+\-@\t\r]/.test(text)) {
+    text = "'" + text;
+  }
   if (/[",\r\n]/.test(text)) {
     return `"${text.replace(/"/g, '""')}"`;
   }

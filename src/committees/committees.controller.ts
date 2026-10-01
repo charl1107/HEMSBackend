@@ -24,6 +24,9 @@ export class CommitteesController {
     return this.committeesService.findMany(eventId);
   }
 
+  // F6: owner ∪ COMMITTEE_MANAGER_ROLES (Admin, Department Head) is dynamic —
+  // a static @Roles would block a non-admin event owner or be vacuous, so the
+  // cross-role denial tests in committees.e2e-spec.ts pin the service check.
   @Post()
   create(
     @Param('eventId') eventId: string,

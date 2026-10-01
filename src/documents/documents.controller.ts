@@ -2,7 +2,6 @@ import {
   Body,
   Controller,
   Delete,
-  ForbiddenException,
   Get,
   Param,
   Post,
@@ -24,7 +23,9 @@ import {
   type DocumentUploadFile,
 } from './document-file.js';
 
-type RequestWithUser = Request & { user?: AuthUser };
+// The global JwtAuthGuard (app.module APP_GUARD) runs before any handler on
+// this non-@Public controller, so req.user is always set here (401 otherwise).
+type RequestWithUser = Request & { user: AuthUser };
 
 @Controller('events/:eventId/documents')
 export class DocumentsController {
@@ -32,9 +33,6 @@ export class DocumentsController {
 
   @Get()
   findMany(@Param('eventId') eventId: string, @Req() req: RequestWithUser) {
-    if (!req.user) {
-      throw new ForbiddenException('Authentication required');
-    }
     return this.documentsService.findMany(eventId, req.user);
   }
 
@@ -51,9 +49,6 @@ export class DocumentsController {
     @Req() req: RequestWithUser,
     @UploadedFile() file?: DocumentUploadFile,
   ) {
-    if (!req.user) {
-      throw new ForbiddenException('Authentication required');
-    }
     return this.documentsService.upload(eventId, req.user, dto.docType, file);
   }
 
@@ -64,9 +59,6 @@ export class DocumentsController {
     @Req() req: RequestWithUser,
     @Res() res: Response,
   ): Promise<void> {
-    if (!req.user) {
-      throw new ForbiddenException('Authentication required');
-    }
     const result = await this.documentsService.download(
       eventId,
       id,
@@ -88,9 +80,6 @@ export class DocumentsController {
     @Param('id') id: string,
     @Req() req: RequestWithUser,
   ) {
-    if (!req.user) {
-      throw new ForbiddenException('Authentication required');
-    }
     return this.documentsService.remove(eventId, id, req.user);
   }
 }

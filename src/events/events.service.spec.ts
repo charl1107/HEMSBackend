@@ -6,6 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { EventsService } from './events.service.js';
+import type { CoverStorage } from './cover-file.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import type { AuthUser } from '../common/auth-user.js';
 import { PUBLIC_EVENT_STATUSES } from './events.constants.js';
@@ -66,6 +67,23 @@ function makePrisma(): MockPrisma {
   };
 }
 
+type MockCoverStorage = CoverStorage & {
+  put: ReturnType<typeof vi.fn>;
+  remove: ReturnType<typeof vi.fn>;
+};
+
+// F34: the unit suite must never touch Supabase. The spec injects this stub
+// through the service's optional COVER_STORAGE constructor slot, so
+// createCoverStorage() (and its live fetch when SUPABASE_URL is set) never runs.
+function makeCoverStorage(): MockCoverStorage {
+  return {
+    put: vi
+      .fn()
+      .mockImplementation(async (key: string) => `/uploads/${key}`),
+    remove: vi.fn().mockResolvedValue(undefined),
+  };
+}
+
 function draftEvent(overrides: Record<string, unknown> = {}) {
   return {
     id: 'evt-1',
@@ -86,11 +104,16 @@ function draftEvent(overrides: Record<string, unknown> = {}) {
 
 describe('EventsService', () => {
   let prisma: MockPrisma;
+  let coverStorage: MockCoverStorage;
   let service: EventsService;
 
   beforeEach(() => {
     prisma = makePrisma();
-    service = new EventsService(prisma as unknown as PrismaService);
+    coverStorage = makeCoverStorage();
+    service = new EventsService(
+      prisma as unknown as PrismaService,
+      coverStorage,
+    );
   });
 
   describe('public catalog filter', () => {
@@ -397,6 +420,26 @@ describe('EventsService', () => {
       expect(result.conflictWarning).toBeNull();
     });
 
+    it('create() with a free venue returns conflictWarning: null', async () => {
+      prisma.event.create.mockResolvedValue(draftEvent({ id: 'evt-new' }));
+      // The conflict probe runs after the insert, so the query matches the row
+      // just written unless the new event's own id is excluded from it.
+      prisma.event.findFirst.mockImplementation(
+        (args: { where: { id?: { not?: string } } }) =>
+          args?.where?.id?.not === 'evt-new' ? null : draftEvent({ id: 'evt-new' }),
+      );
+
+      const result = await service.create({
+        title: 'Gala Night',
+        eventDate: '2026-10-01',
+        venue: 'Main Hall',
+      });
+
+      const where = prisma.event.findFirst.mock.calls[0][0].where;
+      expect(where.id).toEqual({ not: 'evt-new' });
+      expect(result.conflictWarning).toBeNull();
+    });
+
     it('conflict excludes self and Cancelled/Rejected events', async () => {
       prisma.event.findUnique.mockResolvedValue(draftEvent());
       prisma.event.update.mockResolvedValue(draftEvent());
@@ -501,6 +544,7 @@ describe('EventsService', () => {
     });
 
     it('accepts valid PNG and persists coverImageUrl', async () => {
+      const fetchSpy = vi.spyOn(globalThis, 'fetch');
       const png = Buffer.concat([
         Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
         Buffer.alloc(16),
@@ -519,6 +563,8 @@ describe('EventsService', () => {
         owner,
       );
 
+      expect(fetchSpy).not.toHaveBeenCalled();
+      fetchSpy.mockRestore();
       expect(prisma.event.update).toHaveBeenCalledWith(
         expect.objectContaining({
           data: {

@@ -80,4 +80,8 @@ export const ATTENDANCE_SUPERVISOR_ROLES = [
   'Department Head',
 ] as const;
 
-export const ATTENDANCE_LATE_FIX_ROLE = 'Event Coordinator' as const;
+export const ATTENDANCE_LATE_FIX_ROLES = [
+  'Event Coordinator',
+  'Admin',
+  'Department Head',
+] as const;

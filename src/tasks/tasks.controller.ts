@@ -25,6 +25,9 @@ export class TasksController {
     return this.tasksService.findMany(eventId);
   }
 
+  // F6: `assertCanManagePlanning` (owner ∪ committee member ∪ Admin/DeptHead)
+  // is dynamic — committee membership is resolved per request, so a static
+  // @Roles would be vacuous. Pinned by the denial tests instead.
   @Post()
   create(
     @Param('eventId') eventId: string,

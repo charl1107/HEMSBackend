@@ -25,6 +25,8 @@ export class SchedulingController {
     return this.schedulingService.findMany(eventId);
   }
 
+  // F6: same dynamic planning-access rule as tasks (owner ∪ committee member
+  // ∪ Admin/Department Head) — no static @Roles; denial tests pin the check.
   @Post()
   create(
     @Param('eventId') eventId: string,

@@ -11,7 +11,10 @@ import {
 import type { Request } from 'express';
 import type { AuthUser } from '../common/auth-user.js';
 import { Roles } from '../common/decorators/roles.decorator.js';
-import { ROSTER_MANAGER_ROLES } from '../events/events.constants.js';
+import {
+  ROSTER_MANAGER_ROLES,
+  STUDENT_SELF_REGISTER_ROLES,
+} from '../events/events.constants.js';
 import { ParticipantsService } from './participants.service.js';
 import { AddParticipantDto } from './dto/participant.dto.js';
 
@@ -27,7 +30,11 @@ export class ParticipantsController {
     return this.participantsService.findMany(eventId);
   }
 
+  // F6: the only participants write whose legitimate set is static — the
+  // roster writes below stay service-checked because a static @Roles would
+  // either block an event owner or be vacuous.
   @Post('register')
+  @Roles(...STUDENT_SELF_REGISTER_ROLES)
   selfRegister(
     @Param('eventId') eventId: string,
     @Req() req: RequestWithUser,
@@ -38,6 +45,8 @@ export class ParticipantsController {
     return this.participantsService.selfRegister(eventId, req.user);
   }
 
+  // F6: owner ∪ ROSTER_MANAGER_ROLES is dynamic — no static @Roles here;
+  // the service check is pinned by the cross-role denial tests instead.
   @Post()
   add(
     @Param('eventId') eventId: string,

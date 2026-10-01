@@ -12,7 +12,7 @@ import { AuditService } from '../audit/audit.service.js';
 import { EVENT_INCLUDE } from '../events/events.service.js';
 import type { AuthUser } from '../common/auth-user.js';
 import {
-  ATTENDANCE_LATE_FIX_ROLE,
+  ATTENDANCE_LATE_FIX_ROLES,
   ATTENDANCE_SUPERVISOR_ROLES,
 } from '../events/events.constants.js';
 import {
@@ -160,8 +160,19 @@ export class AttendanceService {
     const accepted: string[] = [];
     const rejected: SyncRejection[] = [];
     const events = new Map<string, Pick<Event, 'id' | 'status'> | null>();
+    const seenInBatch = new Set<string>();
 
     for (const record of dto.records) {
+      // F11: a clientRecordId may appear at most once per batch — the first
+      // entry owns the id, every later one is rejected without a write.
+      if (seenInBatch.has(record.clientRecordId)) {
+        rejected.push({
+          clientRecordId: record.clientRecordId,
+          reason: 'duplicate clientRecordId in the same batch',
+        });
+        continue;
+      }
+      seenInBatch.add(record.clientRecordId);
       let event = events.get(record.eventId);
       if (event === undefined) {
         event = await this.findEventOrNull(record.eventId);
@@ -336,10 +347,10 @@ export class AttendanceService {
     if (event.status === 'Ongoing') {
       return null;
     }
-    if (auth.roles.includes(ATTENDANCE_LATE_FIX_ROLE)) {
+    if (ATTENDANCE_LATE_FIX_ROLES.some((role) => auth.roles.includes(role))) {
       return null;
     }
-    return `Attendance requires event status Ongoing (current: ${event.status}); late-fix requires ${ATTENDANCE_LATE_FIX_ROLE}`;
+    return `Attendance requires event status Ongoing (current: ${event.status}); late-fix requires ${ATTENDANCE_LATE_FIX_ROLES.join(', ')}`;
   }
 
   private validateRecordTimes(record: SyncAttendanceRecordDto): string | null {
