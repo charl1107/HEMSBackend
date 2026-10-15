@@ -25,8 +25,11 @@ model User {
   approvals         Approval[]
   // LEGACY: not used by the app; table kept so existing rows survive.
   participants      Participant[]
+  // LEGACY: not used by the app; table kept so existing rows survive.
   committeeMemberships CommitteeMember[]
+  // LEGACY: not used by the app; table kept so existing rows survive.
   assignedTasks     EventTask[]
+  // LEGACY: not used by the app; table kept so existing rows survive.
   documents         Document[]
   notifications     Notification[]
   createdAt         DateTime          @default(now())
@@ -77,6 +80,7 @@ model Event {
   description   String?
   eventDate     DateTime    @db.Date
   venue         String
+  // Removed from the app; the column itself stays in the database by design.
   department    String?
   campusScope   EventCampusScope @default(OnCampus)
   status        EventStatus @default(Planning)
@@ -91,11 +95,15 @@ model Event {
   approvals     Approval[]
   // LEGACY: not used by the app; table kept so existing rows survive.
   participants  Participant[]
+  // LEGACY: not used by the app; table kept so existing rows survive.
   committees    Committee[]
+  // LEGACY: not used by the app; table kept so existing rows survive.
   tasks         EventTask[]
+  // LEGACY: not used by the app; table kept so existing rows survive.
   scheduleEntries EventSchedule[]
   // LEGACY: not used by the app; table kept so existing rows survive.
   attendance    Attendance[]
+  // LEGACY: not used by the app; table kept so existing rows survive.
   documents     Document[]
   notifications Notification[]
 
@@ -144,6 +152,7 @@ model Attendance {
   @@index([participantId])
 }
 
+// LEGACY: not used by the app; table kept so existing rows survive.
 enum TaskStatus {
   Todo
   InProgress
@@ -281,6 +290,7 @@ model RefreshToken {
   @@index([userId])
 }
 
+// LEGACY: not used by the app; table kept so existing rows survive.
 enum DocType {
   Proposal
   Program
