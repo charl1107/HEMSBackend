@@ -99,6 +99,7 @@ model Event {
   committees    Committee[]
   tasks         EventTask[]
   scheduleEntries EventSchedule[]
+  // LEGACY: not used by the app; table kept so existing rows survive.
   attendance    Attendance[]
   documents     Document[]
   notifications Notification[]
@@ -122,11 +123,13 @@ model Notification {
   @@index([userId, createdAt])
 }
 
+// LEGACY: not used by the app; table kept so existing rows survive.
 enum AttendanceStatus {
   Present
   Absent
 }
 
+// LEGACY: not used by the app; table kept so existing rows survive.
 model Attendance {
   id             String           @id @default(cuid())
   participantId  String
@@ -220,6 +223,7 @@ model Participant {
   registrationStatus RegistrationStatus @default(Registered)
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
+  // LEGACY: not used by the app; table kept so existing rows survive.
   attendance         Attendance[]
 
   @@unique([eventId, userId])

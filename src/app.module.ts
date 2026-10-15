@@ -12,7 +12,6 @@ import { EventsModule } from './events/events.module.js';
 import { CommitteesModule } from './committees/committees.module.js';
 import { TasksModule } from './tasks/tasks.module.js';
 import { SchedulingModule } from './scheduling/scheduling.module.js';
-import { AttendanceModule } from './attendance/attendance.module.js';
 import { DocumentsModule } from './documents/documents.module.js';
 import { NotificationsModule } from './notifications/notifications.module.js';
 import { ReportsModule } from './reports/reports.module.js';
@@ -35,7 +34,6 @@ import { RolesGuard } from './common/guards/roles.guard.js';
     CommitteesModule,
     TasksModule,
     SchedulingModule,
-    AttendanceModule,
     DocumentsModule,
     NotificationsModule,
     ReportsModule,

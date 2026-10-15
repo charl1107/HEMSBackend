@@ -52,17 +52,3 @@ export const COMMITTEE_MANAGER_ROLES = [
   'Admin',
   'Department Head',
 ] as const;
-
-export const ATTENDANCE_SUPERVISOR_ROLES = [
-  'Event Coordinator',
-  'Instructor',
-  'Student Officer',
-  'Admin',
-  'Department Head',
-] as const;
-
-export const ATTENDANCE_LATE_FIX_ROLES = [
-  'Event Coordinator',
-  'Admin',
-  'Department Head',
-] as const;
