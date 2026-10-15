@@ -10,13 +10,6 @@ export interface NotifyInput {
   eventId?: string | null;
 }
 
-export interface RoleNotifyInput {
-  actorId: string;
-  type: NotificationType;
-  message: string;
-  eventId?: string | null;
-}
-
 @Injectable()
 export class NotificationsService {
   private readonly logger = new Logger(NotificationsService.name);
@@ -47,35 +40,6 @@ export class NotificationsService {
     } catch (error) {
       this.logger.warn(
         `Failed to create ${input.type} notifications: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
-      );
-    }
-  }
-
-  /**
-   * Best-effort: notifies every active user holding the given role,
-   * skipping the actor. Never throws.
-   */
-  async notifyRole(role: string, input: RoleNotifyInput): Promise<void> {
-    try {
-      const users = await this.prisma.user.findMany({
-        where: {
-          isActive: true,
-          userRoles: { some: { role: { name: role } } },
-        },
-        select: { id: true },
-      });
-      await this.notify({
-        actorId: input.actorId,
-        userIds: users.map((user) => user.id),
-        type: input.type,
-        message: input.message,
-        eventId: input.eventId,
-      });
-    } catch (error) {
-      this.logger.warn(
-        `Failed to notify role ${role} for ${input.type}: ${
           error instanceof Error ? error.message : String(error)
         }`,
       );

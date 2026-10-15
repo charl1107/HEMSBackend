@@ -42,7 +42,6 @@ const KNOWN_MODELS = [
   'refreshToken',
   'event',
   'eventType',
-  'approval',
   'participant',
   'committee',
   'committeeMember',

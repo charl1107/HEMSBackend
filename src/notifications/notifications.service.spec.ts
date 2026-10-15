@@ -10,7 +10,6 @@ type MockPrisma = {
     updateMany: ReturnType<typeof vi.fn>;
     findUnique: ReturnType<typeof vi.fn>;
   };
-  user: { findMany: ReturnType<typeof vi.fn> };
 };
 
 function makePrisma(): MockPrisma {
@@ -21,7 +20,6 @@ function makePrisma(): MockPrisma {
       updateMany: vi.fn().mockResolvedValue({ count: 1 }),
       findUnique: vi.fn().mockResolvedValue(null),
     },
-    user: { findMany: vi.fn().mockResolvedValue([]) },
   };
 }
 
@@ -47,8 +45,8 @@ describe('NotificationsService', () => {
       await service.notify({
         actorId: 'actor-1',
         userIds: ['u-1', 'u-2'],
-        type: 'EventApproved',
-        message: 'approved',
+        type: 'TaskAssigned',
+        message: 'assigned',
         eventId: 'evt-1',
       });
 
@@ -57,14 +55,14 @@ describe('NotificationsService', () => {
           {
             userId: 'u-1',
             eventId: 'evt-1',
-            type: 'EventApproved',
-            message: 'approved',
+            type: 'TaskAssigned',
+            message: 'assigned',
           },
           {
             userId: 'u-2',
             eventId: 'evt-1',
-            type: 'EventApproved',
-            message: 'approved',
+            type: 'TaskAssigned',
+            message: 'assigned',
           },
         ],
       });
@@ -110,85 +108,10 @@ describe('NotificationsService', () => {
         service.notify({
           actorId: 'a',
           userIds: ['u-1'],
-          type: 'EventApproved',
+          type: 'TaskAssigned',
           message: 'm',
         }),
       ).resolves.toBeUndefined();
-      expect(warnSpy).toHaveBeenCalled();
-    });
-  });
-
-  describe('notifyRole', () => {
-    it('looks up active users with the role and notifies them', async () => {
-      prisma.user.findMany.mockResolvedValueOnce([{ id: 'h-1' }, { id: 'h-2' }]);
-
-      await service.notifyRole('Department Head', {
-        actorId: 'owner-1',
-        type: 'EventSubmitted',
-        message: 'submitted',
-        eventId: 'evt-1',
-      });
-
-      expect(prisma.user.findMany).toHaveBeenCalledWith({
-        where: {
-          isActive: true,
-          userRoles: { some: { role: { name: 'Department Head' } } },
-        },
-        select: { id: true },
-      });
-      expect(prisma.notification.createMany).toHaveBeenCalledWith({
-        data: [
-          {
-            userId: 'h-1',
-            eventId: 'evt-1',
-            type: 'EventSubmitted',
-            message: 'submitted',
-          },
-          {
-            userId: 'h-2',
-            eventId: 'evt-1',
-            type: 'EventSubmitted',
-            message: 'submitted',
-          },
-        ],
-      });
-    });
-
-    it('skips the actor among role holders', async () => {
-      prisma.user.findMany.mockResolvedValueOnce([
-        { id: 'owner-1' },
-        { id: 'h-2' },
-      ]);
-
-      await service.notifyRole('Department Head', {
-        actorId: 'owner-1',
-        type: 'EventSubmitted',
-        message: 'submitted',
-      });
-
-      expect(prisma.notification.createMany).toHaveBeenCalledWith({
-        data: [
-          {
-            userId: 'h-2',
-            eventId: null,
-            type: 'EventSubmitted',
-            message: 'submitted',
-          },
-        ],
-      });
-    });
-
-    it('is best-effort: role lookup failure does not reject', async () => {
-      prisma.user.findMany.mockRejectedValueOnce(new Error('db down'));
-
-      await expect(
-        service.notifyRole('Department Head', {
-          actorId: 'owner-1',
-          type: 'EventSubmitted',
-          message: 'submitted',
-        }),
-      ).resolves.toBeUndefined();
-      expect(prisma.notification.createMany).not.toHaveBeenCalled();
       expect(warnSpy).toHaveBeenCalled();
     });
   });

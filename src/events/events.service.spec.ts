@@ -287,7 +287,7 @@ describe('EventsService', () => {
       );
     });
 
-    it('scopes non-reviewers to own + public, plus PendingApproval for submit roles', async () => {
+    it('scopes non-reviewers to own + public statuses', async () => {
       prisma.event.findMany.mockResolvedValue([]);
       prisma.event.count.mockResolvedValue(0);
 
@@ -308,11 +308,7 @@ describe('EventsService', () => {
         expect.objectContaining({
           where: {
             OR: [
-              {
-                status: {
-                  in: [...PUBLIC_EVENT_STATUSES, 'PendingApproval'],
-                },
-              },
+              { status: { in: [...PUBLIC_EVENT_STATUSES] } },
               { createdById: 'u1' },
             ],
           },
@@ -363,19 +359,6 @@ describe('EventsService', () => {
       );
       await expect(service.findOneVisible('evt-1', reviewer)).resolves.toMatchObject(
         { id: 'evt-1' },
-      );
-      await expect(service.findOneVisible('evt-1', stranger)).rejects.toThrow(
-        NotFoundException,
-      );
-    });
-
-    it('lets submit roles open others PendingApproval events (queue flow) but not instructors', async () => {
-      prisma.event.findUnique.mockResolvedValue(
-        draftEvent({ status: 'PendingApproval', createdById: 'u9' }),
-      );
-
-      await expect(service.findOneVisible('evt-1', owner)).resolves.toMatchObject(
-        { status: 'PendingApproval' },
       );
       await expect(service.findOneVisible('evt-1', stranger)).rejects.toThrow(
         NotFoundException,

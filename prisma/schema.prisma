@@ -21,6 +21,7 @@ model User {
   refreshTokens     RefreshToken[]
   auditLogs         AuditLog[]
   createdEvents     Event[]
+  // LEGACY: not used by the app; table kept so existing rows survive.
   approvals         Approval[]
   participants      Participant[]
   committeeMemberships CommitteeMember[]
@@ -43,6 +44,7 @@ enum NotificationType {
   TaskAssigned
 }
 
+// LEGACY: not used by the app; table kept so existing rows survive.
 enum ApprovalAction {
   Submitted
   Approved
@@ -89,6 +91,7 @@ model Event {
   createdBy     User?       @relation(fields: [createdById], references: [id], onDelete: SetNull)
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
+  // LEGACY: not used by the app; table kept so existing rows survive.
   approvals     Approval[]
   participants  Participant[]
   committees    Committee[]
@@ -177,6 +180,7 @@ model EventSchedule {
   @@index([eventId])
 }
 
+// LEGACY: not used by the app; table kept so existing rows survive.
 model Approval {
   id         String         @id @default(cuid())
   eventId    String

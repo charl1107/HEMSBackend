@@ -18,7 +18,6 @@ import {
   EDITABLE_EVENT_STATUSES,
   PUBLIC_EVENT_STATUSES,
   REVIEW_EVENT_ROLES,
-  SUBMIT_EVENT_ROLES,
 } from './events.constants.js';
 import { canTransition } from './event-state.js';
 import {
@@ -121,12 +120,6 @@ export class EventsService {
     if (event.createdById && event.createdById === user.userId) {
       return true;
     }
-    if (
-      event.status === 'PendingApproval' &&
-      SUBMIT_EVENT_ROLES.some((role) => user.roles.includes(role))
-    ) {
-      return true;
-    }
     return (PUBLIC_EVENT_STATUSES as readonly string[]).includes(event.status);
   }
 
@@ -135,9 +128,6 @@ export class EventsService {
       return {};
     }
     const allowed: Event['status'][] = [...PUBLIC_EVENT_STATUSES];
-    if (SUBMIT_EVENT_ROLES.some((role) => user.roles.includes(role))) {
-      allowed.push('PendingApproval');
-    }
     const filters: Prisma.EventWhereInput[] = [{ status: { in: allowed } }];
     if (user.userId) {
       filters.push({ createdById: user.userId });
@@ -280,9 +270,9 @@ export class EventsService {
    * Planning → Ongoing → Completed, plus cancel (any live status →
    * Cancelled) and resume (Cancelled → Planning). Authorization: owner,
    * Admin or Department Head — not Event Coordinator. The write is guarded
-   * with the optimistic-concurrency where-clause from approvals.service.ts
-   * `transition()`: it names the status read from the row, so a concurrent
-   * change between read and write matches no row and yields 409.
+   * with an optimistic-concurrency where-clause: it names the status read
+   * from the row, so a concurrent change between read and write matches no
+   * row and yields 409.
    */
   async advance(
     id: string,
