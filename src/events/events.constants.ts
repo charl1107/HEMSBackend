@@ -1,18 +1,12 @@
 import type { EventCampusScope, EventStatus } from '@prisma/client';
 
 export const PUBLIC_EVENT_STATUSES = [
-  'Approved',
   'Planning',
   'Ongoing',
   'Completed',
 ] as const satisfies readonly EventStatus[];
 
 export const ALL_EVENT_STATUSES = [
-  'Draft',
-  'PendingApproval',
-  'RevisionRequired',
-  'Approved',
-  'Rejected',
   'Planning',
   'Ongoing',
   'Completed',
@@ -25,13 +19,12 @@ export const EVENT_CAMPUS_SCOPES = [
 ] as const satisfies readonly EventCampusScope[];
 
 export const EDITABLE_EVENT_STATUSES = [
-  'Draft',
-  'RevisionRequired',
+  'Planning',
+  'Ongoing',
 ] as const satisfies readonly EventStatus[];
 
 export const CONFLICT_EXCLUDED_STATUSES = [
   'Cancelled',
-  'Rejected',
 ] as const satisfies readonly EventStatus[];
 
 export const SUBMIT_EVENT_ROLES = [
@@ -54,13 +47,6 @@ export const ROSTER_MANAGER_ROLES = [
   'Department Head',
   'Admin',
 ] as const;
-
-export const ROSTER_EVENT_STATUSES = [
-  'Approved',
-  'Planning',
-  'Ongoing',
-  'Completed',
-] as const satisfies readonly EventStatus[];
 
 export const STUDENT_SELF_REGISTER_ROLES = [
   'Student',

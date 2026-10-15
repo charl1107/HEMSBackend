@@ -91,7 +91,7 @@ function draftEvent(overrides: Record<string, unknown> = {}) {
     description: null,
     eventDate: new Date('2026-10-01T00:00:00.000Z'),
     venue: 'Main Hall',
-    status: 'Draft',
+    status: 'Planning',
     coverImageUrl: null,
     eventTypeId: null,
     eventType: null,
@@ -117,9 +117,9 @@ describe('EventsService', () => {
   });
 
   describe('public catalog filter', () => {
-    it('lists only Approved | Planning | Ongoing | Completed', async () => {
+    it('lists only Planning | Ongoing | Completed', async () => {
       prisma.event.findMany.mockResolvedValue([
-        draftEvent({ id: 'a', status: 'Approved' }),
+        draftEvent({ id: 'a', status: 'Ongoing' }),
         draftEvent({ id: 'b', status: 'Planning' }),
       ]);
 
@@ -133,6 +133,7 @@ describe('EventsService', () => {
       expect(PUBLIC_EVENT_STATUSES).not.toContain('Draft');
       expect(PUBLIC_EVENT_STATUSES).not.toContain('PendingApproval');
       expect(PUBLIC_EVENT_STATUSES).not.toContain('Rejected');
+      expect(PUBLIC_EVENT_STATUSES).not.toContain('Approved');
     });
 
     it('detail query filters by id AND public status (Draft never returns)', async () => {
@@ -153,7 +154,7 @@ describe('EventsService', () => {
     });
 
     it('pages the public catalog and reports total', async () => {
-      const items = [draftEvent({ id: 'a', status: 'Approved' })];
+      const items = [draftEvent({ id: 'a', status: 'Planning' })];
       prisma.event.findMany.mockResolvedValue(items);
       prisma.event.count.mockResolvedValue(40);
 
@@ -226,7 +227,7 @@ describe('EventsService', () => {
         {
           limit: 100,
           offset: 0,
-          status: ['Draft', 'Approved'],
+          status: ['Planning', 'Cancelled'],
           campusScope: 'OnCampus',
           type: 'Seminar',
         },
@@ -234,7 +235,7 @@ describe('EventsService', () => {
       );
 
       const where = {
-        status: { in: ['Draft', 'Approved'] },
+        status: { in: ['Planning', 'Cancelled'] },
         campusScope: 'OnCampus',
         eventType: { name: 'Seminar' },
       };
@@ -307,13 +308,13 @@ describe('EventsService', () => {
       prisma.event.findMany.mockResolvedValue([]);
       prisma.event.count.mockResolvedValue(0);
 
-      await service.findPage({ status: ['Draft'] }, stranger);
+      await service.findPage({ status: ['Cancelled'] }, stranger);
 
       expect(prisma.event.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
           where: {
             AND: [
-              { status: { in: ['Draft'] } },
+              { status: { in: ['Cancelled'] } },
               {
                 OR: [
                   { status: { in: [...PUBLIC_EVENT_STATUSES] } },
@@ -328,16 +329,18 @@ describe('EventsService', () => {
 
     it('returns public events to any authenticated user', async () => {
       prisma.event.findUnique.mockResolvedValue(
-        draftEvent({ status: 'Approved' }),
+        draftEvent({ status: 'Planning' }),
       );
 
       await expect(service.findOneVisible('evt-1', stranger)).resolves.toMatchObject(
-        { status: 'Approved' },
+        { status: 'Planning' },
       );
     });
 
-    it('hides Drafts from non-owners; owner and reviewers still see them', async () => {
-      prisma.event.findUnique.mockResolvedValue(draftEvent());
+    it('hides Cancelled events from non-owners; owner and reviewers still see them', async () => {
+      prisma.event.findUnique.mockResolvedValue(
+        draftEvent({ status: 'Cancelled' }),
+      );
 
       await expect(service.findOneVisible('evt-1', owner)).resolves.toMatchObject(
         { id: 'evt-1' },
@@ -399,12 +402,12 @@ describe('EventsService', () => {
           where: expect.objectContaining({
             venue: { equals: 'Main Hall', mode: 'insensitive' },
             eventDate: new Date('2026-10-01'),
-            status: { notIn: ['Cancelled', 'Rejected'] },
+            status: { notIn: ['Cancelled'] },
           }),
         }),
       );
       expect(result.conflictWarning).toContain('Wedding Expo');
-      expect(result.status).toBe('Draft');
+      expect(result.status).toBe('Planning');
     });
 
     it('create returns null conflictWarning when no conflict', async () => {
@@ -440,7 +443,7 @@ describe('EventsService', () => {
       expect(result.conflictWarning).toBeNull();
     });
 
-    it('conflict excludes self and Cancelled/Rejected events', async () => {
+    it('conflict excludes self and Cancelled events', async () => {
       prisma.event.findUnique.mockResolvedValue(draftEvent());
       prisma.event.update.mockResolvedValue(draftEvent());
       prisma.event.findFirst.mockResolvedValue(null);
@@ -449,14 +452,14 @@ describe('EventsService', () => {
 
       const where = prisma.event.findFirst.mock.calls[0][0].where;
       expect(where.id).toEqual({ not: 'evt-1' });
-      expect(where.status).toEqual({ notIn: ['Cancelled', 'Rejected'] });
+      expect(where.status).toEqual({ notIn: ['Cancelled'] });
     });
   });
 
   describe('status edit guard', () => {
-    it('update rejects when status is Approved', async () => {
+    it('update rejects when status is Completed', async () => {
       prisma.event.findUnique.mockResolvedValue(
-        draftEvent({ status: 'Approved' }),
+        draftEvent({ status: 'Completed' }),
       );
 
       await expect(
@@ -465,9 +468,9 @@ describe('EventsService', () => {
       expect(prisma.event.update).not.toHaveBeenCalled();
     });
 
-    it('delete rejects when status is Ongoing', async () => {
+    it('delete rejects when status is Cancelled', async () => {
       prisma.event.findUnique.mockResolvedValue(
-        draftEvent({ status: 'Ongoing' }),
+        draftEvent({ status: 'Cancelled' }),
       );
 
       await expect(service.remove('evt-1', owner)).rejects.toThrow(
@@ -476,12 +479,12 @@ describe('EventsService', () => {
       expect(prisma.event.delete).not.toHaveBeenCalled();
     });
 
-    it('allows edit while RevisionRequired', async () => {
+    it('allows edit while Ongoing', async () => {
       prisma.event.findUnique.mockResolvedValue(
-        draftEvent({ status: 'RevisionRequired' }),
+        draftEvent({ status: 'Ongoing' }),
       );
       prisma.event.update.mockResolvedValue(
-        draftEvent({ status: 'RevisionRequired', title: 'Updated' }),
+        draftEvent({ status: 'Ongoing', title: 'Updated' }),
       );
       prisma.event.findFirst.mockResolvedValue(null);
 
@@ -493,7 +496,7 @@ describe('EventsService', () => {
       expect(result.title).toBe('Updated');
     });
 
-    it('allows delete while Draft', async () => {
+    it('allows delete while Planning', async () => {
       prisma.event.findUnique.mockResolvedValue(draftEvent());
       prisma.event.delete.mockResolvedValue(draftEvent());
 
@@ -579,7 +582,7 @@ describe('EventsService', () => {
 
     it('rejects cover upload when event is not editable', async () => {
       prisma.event.findUnique.mockResolvedValue(
-        draftEvent({ status: 'Approved' }),
+        draftEvent({ status: 'Completed' }),
       );
 
       await expect(
@@ -633,7 +636,7 @@ describe('EventsService', () => {
   });
 
   describe('CRUD happy paths', () => {
-    it('create trims venue and defaults to Draft', async () => {
+    it('create trims venue and defaults to Planning', async () => {
       prisma.event.create.mockResolvedValue(draftEvent());
       prisma.event.findFirst.mockResolvedValue(null);
 
@@ -650,7 +653,7 @@ describe('EventsService', () => {
         expect.objectContaining({
           data: expect.objectContaining({
             venue: 'Main Hall',
-            status: 'Draft',
+            status: 'Planning',
             createdById: 'user-9',
           }),
         }),

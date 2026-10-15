@@ -204,7 +204,7 @@ export class EventsService {
         venue,
         department: dto.department?.trim() || null,
         campusScope: dto.campusScope ?? 'OnCampus',
-        status: 'Draft',
+        status: 'Planning',
         eventTypeId: dto.eventTypeId ?? null,
         createdById: userId ?? null,
       },
@@ -423,7 +423,7 @@ export class EventsService {
       !(EDITABLE_EVENT_STATUSES as readonly string[]).includes(event.status)
     ) {
       throw new ConflictException(
-        `Event can only be edited while Draft or RevisionRequired (current: ${event.status})`,
+        `Event can only be edited while Planning or Ongoing (current: ${event.status})`,
       );
     }
   }

@@ -1,29 +1,21 @@
 import type { EventStatus } from '@prisma/client';
 
 export const EVENT_STATUSES = [
-  'Draft',
-  'PendingApproval',
-  'RevisionRequired',
-  'Approved',
-  'Rejected',
   'Planning',
   'Ongoing',
   'Completed',
   'Cancelled',
 ] as const satisfies readonly EventStatus[];
 
+// Partial because the Prisma EventStatus enum still holds the five legacy
+// values until the Task 12 backfill shrinks it; removed statuses go nowhere.
 export const EVENT_TRANSITIONS: Readonly<
-  Record<EventStatus, readonly EventStatus[]>
+  Partial<Record<EventStatus, readonly EventStatus[]>>
 > = {
-  Draft: ['PendingApproval', 'Cancelled'],
-  PendingApproval: ['Approved', 'Rejected', 'RevisionRequired', 'Cancelled'],
-  RevisionRequired: ['PendingApproval', 'Cancelled'],
-  Approved: ['Planning', 'Cancelled'],
   Planning: ['Ongoing', 'Cancelled'],
   Ongoing: ['Completed', 'Cancelled'],
   Completed: [],
-  Rejected: [],
-  Cancelled: [],
+  Cancelled: ['Planning'],
 };
 
 export function canTransition(from: EventStatus, to: EventStatus): boolean {
