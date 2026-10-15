@@ -40,7 +40,7 @@ export const REVIEW_EVENT_ROLES = [
   'Admin',
 ] as const;
 
-export const ROSTER_MANAGER_ROLES = [
+export const DIRECTORY_READ_ROLES = [
   'Event Coordinator',
   'Instructor',
   'Student Officer',

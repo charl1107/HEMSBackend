@@ -80,7 +80,7 @@ export class UsersService {
         studentId: dto.studentId,
         program: dto.program,
         yearLevel: dto.yearLevel,
-        mustChangePassword: isStudent,
+        mustChangePassword: true,
         userRoles: {
           create: roles.map((role) => ({ roleId: role.id })),
         },
