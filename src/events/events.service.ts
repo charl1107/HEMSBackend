@@ -65,8 +65,12 @@ export type PublicEvent = Pick<
   'id' | 'title' | 'description' | 'eventDate' | 'venue' | 'coverImageUrl' | 'status'
 > & { eventType: { name: string } | null };
 
-/** Statuses POST /events/:id/advance may move an event to (F17 lifecycle). */
-const ADVANCE_TARGET_STATUSES = ['Ongoing', 'Completed'] as const;
+/**
+ * Roles that may drive POST /events/:id/advance on events they do not own.
+ * Event Coordinators are deliberately excluded: in the four-status rework
+ * they are plain owners of their own events and lost cross-event power.
+ */
+const ADVANCE_EVENT_ROLES = ['Admin', 'Department Head'] as const;
 
 export type EventWithRelations = Event & { eventType: EventType | null };
 
@@ -272,10 +276,11 @@ export class EventsService {
   }
 
   /**
-   * POST /events/:id/advance — moves an event along the lifecycle
-   * Planning → Ongoing → Completed (F17). Authorization mirrors update():
-   * owner or a REVIEW_EVENT_ROLES holder. The write is guarded with the
-   * optimistic-concurrency where-clause from approvals.service.ts
+   * POST /events/:id/advance — drives an event along EVENT_TRANSITIONS:
+   * Planning → Ongoing → Completed, plus cancel (any live status →
+   * Cancelled) and resume (Cancelled → Planning). Authorization: owner,
+   * Admin or Department Head — not Event Coordinator. The write is guarded
+   * with the optimistic-concurrency where-clause from approvals.service.ts
    * `transition()`: it names the status read from the row, so a concurrent
    * change between read and write matches no row and yields 409.
    */
@@ -285,10 +290,7 @@ export class EventsService {
     user: AuthUser,
   ): Promise<EventWithRelations> {
     const event = await this.findOne(id);
-    this.assertCanEdit(event, user);
-    if (!(ADVANCE_TARGET_STATUSES as readonly string[]).includes(to)) {
-      throw new ConflictException('Advance target must be Ongoing or Completed');
-    }
+    this.assertCanAdvance(event, user);
     if (!canTransition(event.status, to)) {
       throw new ConflictException(
         `Invalid event status transition ${event.status} → ${to}`,
@@ -414,6 +416,18 @@ export class EventsService {
     if (!isOwner && !isReviewer) {
       throw new ForbiddenException(
         'Only a review-role user or the event owner can edit this event',
+      );
+    }
+  }
+
+  private assertCanAdvance(event: EventWithRelations, user: AuthUser): void {
+    const isOwner = event.createdById === user.userId;
+    const isPrivileged = ADVANCE_EVENT_ROLES.some((role) =>
+      user.roles.includes(role),
+    );
+    if (!isOwner && !isPrivileged) {
+      throw new ForbiddenException(
+        'Only the event owner, an Admin or a Department Head can change event status',
       );
     }
   }

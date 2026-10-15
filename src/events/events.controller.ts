@@ -107,8 +107,9 @@ export class EventsController {
     return this.eventsService.removeCover(id, req.user);
   }
 
-  /** Lifecycle advance (Planning → Ongoing → Completed, F17). Authorization
-   *  lives in the service: owner or a REVIEW_EVENT_ROLES holder. */
+  /** Lifecycle advance along EVENT_TRANSITIONS (F17): ongoing, completed,
+   *  cancel and resume. Authorization lives in the service: the event
+   *  owner, Admin or Department Head. */
   @Post(':id/advance')
   @HttpCode(200)
   advance(
