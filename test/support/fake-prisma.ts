@@ -42,11 +42,6 @@ const KNOWN_MODELS = [
   'refreshToken',
   'event',
   'eventType',
-  'committee',
-  'committeeMember',
-  'eventTask',
-  'eventSchedule',
-  'document',
   'notification',
   'auditLog',
 ] as const;

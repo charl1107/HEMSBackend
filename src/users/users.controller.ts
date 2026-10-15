@@ -16,9 +16,8 @@ import { AssignRoleDto, CreateUserDto, UpdateUserDto } from './dto/user.dto.js';
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
-  // Reads are open to directory readers so the task-assignee and committee
-  // member pickers can resolve system users (F30, U12); every write route
-  // stays Admin-only.
+  // Reads are open to directory readers so pickers can resolve system users
+  // (F30, U12); every write route stays Admin-only.
   @Get()
   @Roles('Admin', ...DIRECTORY_READ_ROLES)
   findAll() {

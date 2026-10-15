@@ -68,15 +68,15 @@ describe('AuditService.list', () => {
   });
 
   it('filters by entity path segment', async () => {
-    await service.list({ entity: 'tasks', page: 1, pageSize: 20 });
+    await service.list({ entity: 'reports', page: 1, pageSize: 20 });
 
     expect(prisma.auditLog.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: {
           OR: [
-            { path: '/tasks' },
-            { path: { startsWith: '/tasks/' } },
-            { path: { startsWith: '/tasks?' } },
+            { path: '/reports' },
+            { path: { startsWith: '/reports/' } },
+            { path: { startsWith: '/reports?' } },
           ],
         },
       }),

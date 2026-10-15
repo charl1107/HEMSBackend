@@ -55,8 +55,3 @@ export const DIRECTORY_READ_ROLES = [
   'Department Head',
   'Admin',
 ] as const;
-
-export const COMMITTEE_MANAGER_ROLES = [
-  'Admin',
-  'Department Head',
-] as const;

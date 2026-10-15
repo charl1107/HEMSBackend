@@ -4,8 +4,8 @@ import { ROLES_KEY } from '../common/constants/metadata-keys.js';
 import { DIRECTORY_READ_ROLES } from '../events/events.constants.js';
 import { UsersController } from './users.controller.js';
 
-/** The exact reader set for GET /users: task-assignee and committee-member
- *  pickers need directory reads; Students stay excluded. */
+/** The exact reader set for GET /users: directory pickers need directory
+ *  reads; Students stay excluded. */
 const DIRECTORY_READERS = [
   'Admin',
   'Department Head',

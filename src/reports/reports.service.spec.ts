@@ -5,14 +5,12 @@ import type { PrismaService } from '../prisma/prisma.service.js';
 type MockPrisma = {
   event: { findMany: ReturnType<typeof vi.fn> };
   eventType: { findMany: ReturnType<typeof vi.fn> };
-  eventTask: { groupBy: ReturnType<typeof vi.fn> };
 };
 
 function makePrisma(): MockPrisma {
   return {
     event: { findMany: vi.fn().mockResolvedValue([]) },
     eventType: { findMany: vi.fn().mockResolvedValue([]) },
-    eventTask: { groupBy: vi.fn().mockResolvedValue([]) },
   };
 }
 
@@ -26,7 +24,7 @@ describe('ReportsService', () => {
   });
 
   describe('getSummary', () => {
-    it('returns exactly event and task statistics', async () => {
+    it('returns exactly the event statistics', async () => {
       prisma.event.findMany.mockResolvedValue([
         {
           status: 'Completed',
@@ -50,10 +48,6 @@ describe('ReportsService', () => {
       prisma.eventType.findMany.mockResolvedValue([
         { id: 'type-1', name: 'Fair' },
       ]);
-      prisma.eventTask.groupBy.mockResolvedValue([
-        { status: 'Done', _count: { _all: 2 } },
-        { status: 'Todo', _count: { _all: 3 } },
-      ]);
 
       const summary = await service.getSummary();
 
@@ -65,19 +59,14 @@ describe('ReportsService', () => {
           byMonth: { '2026-06': 2, '2026-07': 1 },
           byCampusScope: { OnCampus: 2, OffCampus: 1 },
         },
-        tasks: { total: 5, done: 2, completionRate: 40 },
       });
+      expect(summary).not.toHaveProperty('tasks');
       expect(summary.events.byMonth['2026-06']).toBe(2);
       expect(summary.events.byCampusScope.OnCampus).toBe(2);
-      expect(summary.tasks.completionRate).toBe(40);
     });
 
-    it('keeps both campus scope keys at zero and rounds completionRate to 1 decimal', async () => {
+    it('keeps both campus scope keys at zero', async () => {
       prisma.event.findMany.mockResolvedValue([]);
-      prisma.eventTask.groupBy.mockResolvedValue([
-        { status: 'Done', _count: { _all: 1 } },
-        { status: 'Todo', _count: { _all: 2 } },
-      ]);
 
       const summary = await service.getSummary();
 
@@ -89,11 +78,10 @@ describe('ReportsService', () => {
           byMonth: {},
           byCampusScope: { OnCampus: 0, OffCampus: 0 },
         },
-        tasks: { total: 3, done: 1, completionRate: 33.3 },
       });
     });
 
-    it('reports a completionRate of 0 with no tasks', async () => {
+    it('returns zeroed event statistics with no rows', async () => {
       const summary = await service.getSummary();
 
       expect(summary.events).toEqual({
@@ -103,7 +91,7 @@ describe('ReportsService', () => {
         byMonth: {},
         byCampusScope: { OnCampus: 0, OffCampus: 0 },
       });
-      expect(summary.tasks).toEqual({ total: 0, done: 0, completionRate: 0 });
+      expect(summary).not.toHaveProperty('tasks');
     });
   });
 });

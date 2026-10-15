@@ -9,7 +9,6 @@ export interface SummaryReport {
     byMonth: Record<string, number>;
     byCampusScope: Record<'OnCampus' | 'OffCampus', number>;
   };
-  tasks: { total: number; done: number; completionRate: number };
 }
 
 function toRecord(counts: Map<string, number>): Record<string, number> {
@@ -27,7 +26,7 @@ export class ReportsService {
   constructor(private readonly prisma: PrismaService) {}
 
   async getSummary(): Promise<SummaryReport> {
-    const [events, eventTypes, taskGroups] = await Promise.all([
+    const [events, eventTypes] = await Promise.all([
       this.prisma.event.findMany({
         select: {
           status: true,
@@ -39,10 +38,6 @@ export class ReportsService {
       this.prisma.eventType.findMany({
         select: { id: true, name: true },
         orderBy: { name: 'asc' },
-      }),
-      this.prisma.eventTask.groupBy({
-        by: ['status'],
-        _count: { _all: true },
       }),
     ]);
 
@@ -68,13 +63,6 @@ export class ReportsService {
       byCampusScope[event.campusScope] += 1;
     }
 
-    const totalTasks = taskGroups.reduce(
-      (sum, row) => sum + row._count._all,
-      0,
-    );
-    const doneTasks =
-      taskGroups.find((row) => row.status === 'Done')?._count._all ?? 0;
-
     return {
       events: {
         total: events.length,
@@ -82,14 +70,6 @@ export class ReportsService {
         byType: toRecord(byType),
         byMonth: toRecord(byMonth),
         byCampusScope,
-      },
-      tasks: {
-        total: totalTasks,
-        done: doneTasks,
-        completionRate:
-          totalTasks === 0
-            ? 0
-            : Math.round((doneTasks / totalTasks) * 1000) / 10,
       },
     };
   }

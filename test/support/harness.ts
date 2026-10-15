@@ -12,9 +12,6 @@
  *     .get('/events')
  *     .set('Authorization', await auth.asAdmin());
  */
-import { mkdtempSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 import { INestApplication } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
@@ -24,15 +21,6 @@ import { PrismaService } from '../../src/prisma/prisma.service.js';
 import { hardenApp } from '../../src/security.js';
 import { resolveJwtSecret } from '../../src/auth/jwt-secret.js';
 import { createFakePrisma, type FakePrisma } from './fake-prisma.js';
-
-// F32: point the local document store at a fresh per-run temp directory, so
-// no stray file in the shared backend/stored-documents/ (manual QA uploads,
-// earlier runs) can affect any e2e assertion. document-storage reads this
-// variable at call time, and setting it here — at harness import, before any
-// test runs — covers every spec that boots through createTestApp().
-// The mkdtemp directory is intentionally left behind: os temp cleanup is the
-// OS's job and this harness has no global teardown hook.
-process.env.DOCUMENTS_ROOT = mkdtempSync(join(tmpdir(), 'hems-docs-'));
 
 // AuthModule resolves JWT_SECRET at AppModule compile time and rejects
 // missing/placeholder values in every environment, so the e2e suite needs a

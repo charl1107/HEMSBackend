@@ -32,19 +32,6 @@ function publicEventRow(overrides: Record<string, unknown> = {}) {
   };
 }
 
-function scheduleRow(overrides: Record<string, unknown> = {}) {
-  return {
-    id: 'sch-1',
-    eventId: 'ev-public',
-    activityName: 'Opening ceremony',
-    startTime: '2026-06-01T09:00:00.000Z',
-    endTime: '2026-06-01T10:00:00.000Z',
-    createdAt: '2026-05-01T00:00:00.000Z',
-    updatedAt: '2026-05-01T00:00:00.000Z',
-    ...overrides,
-  };
-}
-
 describe('Public events catalog (mocked database)', () => {
   let ctx: TestApp;
 
@@ -393,92 +380,5 @@ describe('Public events catalog (mocked database)', () => {
     });
     expect(findFirst.select).toBeDefined();
     expect(findFirst.include).toBeUndefined();
-  });
-
-  // --- F31: public schedule route ------------------------------------------
-  // The public detail page reads the schedule anonymously, so the route has to
-  // pass the exact same status gate as `findPublicOne`: the filter lives in
-  // SQL, and a Cancelled or missing event answers 404 before a
-  // single schedule row is read.
-
-  it('GET /public/events/:id/schedule answers 200 without a token and gates on the public statuses in SQL', async () => {
-    ctx.prisma.on('event.findFirst', publicEventRow());
-    ctx.prisma.on('eventSchedule.findMany', [scheduleRow()]);
-
-    const res = await request(ctx.app.getHttpServer())
-      .get('/public/events/ev-public/schedule')
-      .expect(200);
-
-    expect(res.body.items).toHaveLength(1);
-    expect(res.body.items[0]).toMatchObject({
-      id: 'sch-1',
-      eventId: 'ev-public',
-      activityName: 'Opening ceremony',
-      startTime: '2026-06-01T09:00:00.000Z',
-      endTime: '2026-06-01T10:00:00.000Z',
-    });
-
-    // Same gate as findPublicOne: the status filter is handed to SQL.
-    const findFirst = ctx.prisma.callsFor('event.findFirst')[0] as any;
-    expect(findFirst.where).toEqual({
-      id: 'ev-public',
-      status: { in: PUBLIC_STATUSES },
-    });
-
-    const findMany = ctx.prisma.callsFor('eventSchedule.findMany')[0] as any;
-    expect(findMany.where).toEqual({ eventId: 'ev-public' });
-    expect(findMany.orderBy).toEqual({ startTime: 'asc' });
-
-    // Public means public: no identity is resolved for the caller at all.
-    expect(ctx.prisma.has('user.findUnique')).toBe(false);
-  });
-
-  it('GET /public/events/:id/schedule for a Cancelled event => 404 without reading the schedule', async () => {
-    // The fake never applies the WHERE itself, so a Cancelled row is modelled
-    // the way SQL sees it: the status gate makes `findFirst` come back empty.
-    ctx.prisma.on('event.findFirst', null);
-
-    const res = await request(ctx.app.getHttpServer())
-      .get('/public/events/ev-cancelled/schedule')
-      .expect(404);
-
-    expect(res.body.message).toBe('Event not found');
-
-    const findFirst = ctx.prisma.callsFor('event.findFirst')[0] as any;
-    expect(findFirst.where.id).toBe('ev-cancelled');
-    expect(findFirst.where.status.in).toEqual(PUBLIC_STATUSES);
-
-    // The gate runs first: a hidden event never reaches the schedule table.
-    expect(ctx.prisma.has('eventSchedule.findMany')).toBe(false);
-  });
-
-  it('GET /public/events/:id/schedule for an unknown id => 404', async () => {
-    ctx.prisma.on('event.findFirst', null);
-
-    const res = await request(ctx.app.getHttpServer())
-      .get('/public/events/no-such-event/schedule')
-      .expect(404);
-
-    expect(res.body.message).toBe('Event not found');
-    expect(ctx.prisma.has('eventSchedule.findMany')).toBe(false);
-  });
-
-  it('the public schedule response carries schedule rows only, never event fields', async () => {
-    // The fake ignores `select`, so the gate lookup hands back the full event
-    // row — createdById and friends included. None of it may reach the client.
-    ctx.prisma.on('event.findFirst', publicEventRow({ createdById: 'u-coord' }));
-    ctx.prisma.on('eventSchedule.findMany', [scheduleRow()]);
-
-    const res = await request(ctx.app.getHttpServer())
-      .get('/public/events/ev-public/schedule')
-      .expect(200);
-
-    expect(Object.keys(res.body)).toEqual(['items']);
-    expect(res.body.items[0]).toEqual(scheduleRow());
-    const raw = JSON.stringify(res.body);
-    expect(raw).not.toContain('createdById');
-    expect(raw).not.toContain('u-coord');
-    expect(raw).not.toContain('reviewer');
-    expect(raw).not.toContain('createdBy');
   });
 });

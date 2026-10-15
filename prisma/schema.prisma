@@ -150,6 +150,7 @@ enum TaskStatus {
   Done
 }
 
+// LEGACY: not used by the app; table kept so existing rows survive.
 model EventTask {
   id               String     @id @default(cuid())
   eventId          String
@@ -167,6 +168,7 @@ model EventTask {
   @@index([assignedToUserId])
 }
 
+// LEGACY: not used by the app; table kept so existing rows survive.
 model EventSchedule {
   id           String   @id @default(cuid())
   eventId      String
@@ -225,6 +227,7 @@ model Participant {
   @@index([eventId])
 }
 
+// LEGACY: not used by the app; table kept so existing rows survive.
 model Committee {
   id          String            @id @default(cuid())
   eventId     String
@@ -239,6 +242,7 @@ model Committee {
   @@index([eventId])
 }
 
+// LEGACY: not used by the app; table kept so existing rows survive.
 model CommitteeMember {
   id          String   @id @default(cuid())
   committeeId String
@@ -285,6 +289,7 @@ enum DocType {
   Report
 }
 
+// LEGACY: not used by the app; table kept so existing rows survive.
 model Document {
   id               String   @id @default(cuid())
   eventId          String

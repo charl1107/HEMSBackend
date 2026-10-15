@@ -1,12 +1,10 @@
 import { Module } from '@nestjs/common';
-import { SchedulingModule } from '../scheduling/scheduling.module.js';
 import { EventsController } from './events.controller.js';
 import { PublicEventsController } from './public-events.controller.js';
 import { EventsService } from './events.service.js';
 import { COVER_STORAGE, createCoverStorage } from './cover-file.js';
 
 @Module({
-  imports: [SchedulingModule],
   controllers: [EventsController, PublicEventsController],
   providers: [
     EventsService,
