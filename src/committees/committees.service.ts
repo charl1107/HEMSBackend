@@ -9,7 +9,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import type { AuthUser } from '../common/auth-user.js';
 import {
   COMMITTEE_MANAGER_ROLES,
-  ROSTER_EVENT_STATUSES,
+  PUBLIC_EVENT_STATUSES,
 } from '../events/events.constants.js';
 import { AddCommitteeMemberDto, CreateCommitteeDto } from './dto/committee.dto.js';
 
@@ -153,9 +153,9 @@ export class CommitteesService {
   }
 
   private assertStatusGate(event: Pick<Event, 'status'>): void {
-    if (!(ROSTER_EVENT_STATUSES as readonly string[]).includes(event.status)) {
+    if (!(PUBLIC_EVENT_STATUSES as readonly string[]).includes(event.status)) {
       throw new ConflictException(
-        `Committee operations require event status Approved, Planning, Ongoing, or Completed (current: ${event.status})`,
+        `Committee operations require event status Planning, Ongoing, or Completed (current: ${event.status})`,
       );
     }
   }

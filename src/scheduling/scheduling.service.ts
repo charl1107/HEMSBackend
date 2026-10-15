@@ -29,7 +29,7 @@ export class SchedulingService {
   /**
    * Anonymous read for the public detail page (F31). Applies the exact same
    * status gate as `EventsService.findPublicOne` — the filter lives in SQL, so
-   * a Draft/Rejected/Cancelled or missing event is a 404 before any schedule
+   * a non-public or missing event is a 404 before any schedule
    * row is read — and returns schedule rows only, never event fields.
    */
   async findPublicSchedule(

@@ -53,7 +53,7 @@ function makePrisma(): MockPrisma {
 function baseEvent(overrides: Record<string, unknown> = {}) {
   return {
     id: 'evt-1',
-    status: 'Approved' as EventStatus,
+    status: 'Planning' as EventStatus,
     createdById: 'owner-1',
     ...overrides,
   };
@@ -96,7 +96,7 @@ describe('CommitteesService', () => {
   });
 
   describe('create', () => {
-    it('owner creates a committee on an Approved event', async () => {
+    it('owner creates a committee on a Planning event', async () => {
       await service.create('evt-1', owner(), { name: ' Steering ', description: 'x' });
 
       expect(prisma.committee.create).toHaveBeenCalledWith({
@@ -126,8 +126,10 @@ describe('CommitteesService', () => {
       expect(prisma.committee.create).not.toHaveBeenCalled();
     });
 
-    it('status gate blocks create on Draft event (409)', async () => {
-      prisma.event.findUnique.mockResolvedValue(baseEvent({ status: 'Draft' }));
+    it('status gate blocks create on Cancelled event (409)', async () => {
+      prisma.event.findUnique.mockResolvedValue(
+        baseEvent({ status: 'Cancelled' }),
+      );
 
       await expect(
         service.create('evt-1', owner(), { name: 'Steering' }),
@@ -191,8 +193,10 @@ describe('CommitteesService', () => {
       expect(prisma.committeeMember.create).not.toHaveBeenCalled();
     });
 
-    it('status gate blocks add/remove on non-roster status (409)', async () => {
-      prisma.event.findUnique.mockResolvedValue(baseEvent({ status: 'Draft' }));
+    it('status gate blocks add/remove on a Cancelled event (409)', async () => {
+      prisma.event.findUnique.mockResolvedValue(
+        baseEvent({ status: 'Cancelled' }),
+      );
 
       await expect(
         service.addMember('evt-1', 'cm-1', owner(), { userId: 'u-1' }),

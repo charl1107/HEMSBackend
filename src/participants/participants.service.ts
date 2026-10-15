@@ -9,7 +9,7 @@ import type { Event, Participant, User } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service.js';
 import type { AuthUser } from '../common/auth-user.js';
 import {
-  ROSTER_EVENT_STATUSES,
+  PUBLIC_EVENT_STATUSES,
   ROSTER_MANAGER_ROLES,
   STUDENT_SELF_REGISTER_ROLES,
 } from '../events/events.constants.js';
@@ -135,9 +135,9 @@ export class ParticipantsService {
   }
 
   private assertStatusGate(event: Pick<Event, 'status'>): void {
-    if (!(ROSTER_EVENT_STATUSES as readonly string[]).includes(event.status)) {
+    if (!(PUBLIC_EVENT_STATUSES as readonly string[]).includes(event.status)) {
       throw new ConflictException(
-        `Participant operations require event status Approved, Planning, Ongoing, or Completed (current: ${event.status})`,
+        `Participant operations require event status Planning, Ongoing, or Completed (current: ${event.status})`,
       );
     }
   }

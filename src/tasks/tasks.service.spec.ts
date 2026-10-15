@@ -183,17 +183,16 @@ describe('TasksService', () => {
   });
 
   describe('status gate', () => {
-    it.each(['Rejected', 'Cancelled'] as const)(
-      'blocks create when event is %s (409)',
-      async (status) => {
-        prisma.event.findUnique.mockResolvedValue(baseEvent({ status }));
+    it('blocks create when event is Cancelled (409)', async () => {
+      prisma.event.findUnique.mockResolvedValue(
+        baseEvent({ status: 'Cancelled' }),
+      );
 
-        await expect(
-          service.create('evt-1', owner(), createDto()),
-        ).rejects.toThrow(ConflictException);
-        expect(prisma.eventTask.create).not.toHaveBeenCalled();
-      },
-    );
+      await expect(
+        service.create('evt-1', owner(), createDto()),
+      ).rejects.toThrow(ConflictException);
+      expect(prisma.eventTask.create).not.toHaveBeenCalled();
+    });
 
     it('allows create when event is Draft (planning-anytime choice)', async () => {
       prisma.event.findUnique.mockResolvedValue(

@@ -311,9 +311,9 @@ describe('DocumentsService', () => {
       });
     });
 
-    it('blocks delete when event is Rejected (409)', async () => {
+    it('blocks delete when event is Cancelled (409)', async () => {
       prisma.event.findUnique.mockResolvedValue(
-        baseEvent({ status: 'Rejected' }),
+        baseEvent({ status: 'Cancelled' }),
       );
       await expect(
         service.remove('evt-1', 'doc-1', owner()),
