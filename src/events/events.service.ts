@@ -16,6 +16,7 @@ import type { Page } from '../common/dto/page-query.dto.js';
 import type { AuthUser } from '../common/auth-user.js';
 import {
   EDITABLE_EVENT_STATUSES,
+  EVENT_EDIT_ROLES,
   PUBLIC_EVENT_STATUSES,
   REVIEW_EVENT_ROLES,
 } from './events.constants.js';
@@ -196,7 +197,6 @@ export class EventsService {
         description: dto.description,
         eventDate,
         venue,
-        department: dto.department?.trim() || null,
         campusScope: dto.campusScope ?? 'OnCampus',
         status: 'Planning',
         eventTypeId: dto.eventTypeId ?? null,
@@ -221,10 +221,6 @@ export class EventsService {
     this.assertCanEdit(event, user);
     this.assertEditable(event);
     const venue = dto.venue !== undefined ? dto.venue.trim() : event.venue;
-    const department =
-      dto.department !== undefined
-        ? dto.department.trim() || null
-        : event.department;
     const eventDate =
       dto.eventDate !== undefined ? new Date(dto.eventDate) : event.eventDate;
     if (dto.eventTypeId) {
@@ -235,7 +231,6 @@ export class EventsService {
     if (dto.description !== undefined) data.description = dto.description;
     if (dto.eventDate !== undefined) data.eventDate = eventDate;
     if (dto.venue !== undefined) data.venue = venue;
-    if (dto.department !== undefined) data.department = department;
     if (dto.campusScope !== undefined) data.campusScope = dto.campusScope;
     if (dto.eventTypeId !== undefined) {
       data.eventType = dto.eventTypeId
@@ -400,12 +395,12 @@ export class EventsService {
 
   private assertCanEdit(event: EventWithRelations, user?: AuthUser): void {
     const isOwner = Boolean(user && event.createdById === user.userId);
-    const isReviewer = Boolean(
-      user && REVIEW_EVENT_ROLES.some((role) => user.roles.includes(role)),
+    const isPrivileged = Boolean(
+      user && EVENT_EDIT_ROLES.some((role) => user.roles.includes(role)),
     );
-    if (!isOwner && !isReviewer) {
+    if (!isOwner && !isPrivileged) {
       throw new ForbiddenException(
-        'Only a review-role user or the event owner can edit this event',
+        'Only a Department Head, an Admin or the event owner can edit this event',
       );
     }
   }

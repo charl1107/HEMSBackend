@@ -151,15 +151,15 @@ describe('Events API (mocked database)', () => {
   });
 
   describe('creation is limited to the submit roles', () => {
-    it('an Instructor is denied creation (403, guard blocks before the service)', async () => {
+    it('an Instructor creates a Planning event owned by themselves (201)', async () => {
       const res = await request(ctx.app.getHttpServer())
         .post('/events')
         .set('Authorization', await bearerFor(ctx, 'instructor'))
         .send({ title: 'Study session', eventDate: '2026-06-01', venue: 'B203' })
-        .expect(403);
+        .expect(201);
 
-      expect(res.body.message).toMatch(/forbidden/i);
-      expect(ctx.prisma.has('event.create')).toBe(false);
+      expect(res.body.status).toBe('Planning');
+      expect(res.body.createdById).toBe(ACTORS.instructor.sub);
     });
 
     it('a Student is denied creation (403)', async () => {
@@ -212,8 +212,8 @@ describe('Events API (mocked database)', () => {
     });
   });
 
-  describe('blank department is treated as omitted (F27)', () => {
-    it('POST /events with department: "" => 201 and the persisted department is null', async () => {
+  describe('department never reaches the write path (removed field)', () => {
+    it('POST /events with department => 201 and the whitelist strips it before Prisma', async () => {
       const res = await request(ctx.app.getHttpServer())
         .post('/events')
         .set('Authorization', await bearerFor(ctx, 'coordinator'))
@@ -221,25 +221,26 @@ describe('Events API (mocked database)', () => {
           title: 'Dept-less fair',
           eventDate: '2026-06-14',
           venue: 'Quad',
-          department: '',
+          department: 'Computer Science',
         })
         .expect(201);
 
-      expect(res.body.department).toBeNull();
+      expect(res.body).not.toHaveProperty('department');
 
       const created = ctx.prisma.callsFor('event.create')[0] as any;
-      expect(created.data.department).toBeNull();
+      expect(created.data).not.toHaveProperty('department');
     });
 
-    it('PUT /events/:id with department: "" => 200 and the blank value is omitted from the update', async () => {
+    it('PUT /events/:id with department => 200 and the value is stripped from the update', async () => {
       const state = primeEventState(ctx, eventRow({ status: 'Planning' }));
 
       const res = await request(ctx.app.getHttpServer())
         .put('/events/ev-1')
         .set('Authorization', await bearerFor(ctx, 'coordinator'))
-        .send({ title: 'Renamed', department: '' })
+        .send({ title: 'Renamed', department: 'Student Affairs' })
         .expect(200);
 
+      // The stored column is untouched: only title was written.
       expect(res.body.department).toBe('Computer Science');
 
       const update = ctx.prisma.callsFor('event.update')[0] as any;
@@ -283,7 +284,6 @@ describe('Events API (mocked database)', () => {
       const payload = {
         eventDate: '2026-06-10',
         venue: 'Quad',
-        department: 'Student Affairs',
       };
 
       const first = await request(ctx.app.getHttpServer())
@@ -307,18 +307,19 @@ describe('Events API (mocked database)', () => {
   });
 
   describe('update / delete are limited to the submit roles', () => {
-    it('an Instructor cannot update an event (403) and the service never runs', async () => {
+    it('an Instructor who does not own the event is refused by the service (403)', async () => {
+      primeEventState(ctx, eventRow({ createdById: ACTORS.coordinator.sub }));
+
       await request(ctx.app.getHttpServer())
         .put('/events/ev-1')
         .set('Authorization', await bearerFor(ctx, 'instructor'))
         .send({ title: 'Renamed' })
         .expect(403);
 
-      expect(ctx.prisma.has('event.findUnique')).toBe(false);
       expect(ctx.prisma.has('event.update')).toBe(false);
     });
 
-    it('a Student cannot update an event (403)', async () => {
+    it('a Student cannot update an event (403, guard blocks before the service)', async () => {
       await request(ctx.app.getHttpServer())
         .put('/events/ev-1')
         .set('Authorization', await bearerFor(ctx, 'student'))
@@ -328,7 +329,9 @@ describe('Events API (mocked database)', () => {
       expect(ctx.prisma.has('event.update')).toBe(false);
     });
 
-    it('an Instructor cannot delete an event (403)', async () => {
+    it('an Instructor cannot delete an event they do not own (403)', async () => {
+      primeEventState(ctx, eventRow({ createdById: ACTORS.coordinator.sub }));
+
       await request(ctx.app.getHttpServer())
         .delete('/events/ev-1')
         .set('Authorization', await bearerFor(ctx, 'instructor'))
@@ -396,7 +399,6 @@ describe('Events API (mocked database)', () => {
           description: 'Open-air fair',
           eventDate: '2026-06-10',
           venue: 'Quad',
-          department: 'Student Affairs',
           campusScope: 'OnCampus',
         })
         .expect(201);
@@ -611,9 +613,9 @@ describe('Events API (mocked database)', () => {
       expect(ctx.prisma.has('event.update')).toBe(false);
     });
 
-    it('refuses an edit from a submit-role user who neither owns nor reviews the event (403)', async () => {
+    it('refuses an edit from a submit-role user who neither owns nor holds an edit role (403)', async () => {
       // Student Officer passes the @Roles gate (it is a submit role) but is
-      // neither the owner nor a reviewer, so the service rejects it.
+      // neither the owner nor a Department Head/Admin, so the service rejects it.
       primeEventState(ctx, eventRow({ createdById: ACTORS.coordinator.sub }));
 
       const res = await request(ctx.app.getHttpServer())
@@ -623,7 +625,24 @@ describe('Events API (mocked database)', () => {
         .expect(403);
 
       expect(res.body.message).toBe(
-        'Only a review-role user or the event owner can edit this event',
+        'Only a Department Head, an Admin or the event owner can edit this event',
+      );
+      expect(ctx.prisma.has('event.update')).toBe(false);
+    });
+
+    it('refuses an Event Coordinator editing an event they do not own (403)', async () => {
+      // Coordinators are plain owners: the edit check is owner + Department
+      // Head + Admin, not the review roles.
+      primeEventState(ctx, eventRow({ createdById: ACTORS.head.sub }));
+
+      const res = await request(ctx.app.getHttpServer())
+        .put('/events/ev-1')
+        .set('Authorization', await bearerFor(ctx, 'coordinator'))
+        .send({ title: 'Not mine either' })
+        .expect(403);
+
+      expect(res.body.message).toBe(
+        'Only a Department Head, an Admin or the event owner can edit this event',
       );
       expect(ctx.prisma.has('event.update')).toBe(false);
     });

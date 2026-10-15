@@ -597,8 +597,8 @@ describe('EventsService', () => {
     });
   });
 
-  describe('edit authorization (owner or review role)', () => {
-    it('rejects a non-owner without a review role', async () => {
+  describe('edit authorization (owner, Department Head or Admin)', () => {
+    it('rejects a non-owner without an edit role', async () => {
       prisma.event.findUnique.mockResolvedValue(draftEvent());
 
       await expect(
@@ -607,7 +607,18 @@ describe('EventsService', () => {
       expect(prisma.event.update).not.toHaveBeenCalled();
     });
 
-    it('allows a review-role user to edit another owner event', async () => {
+    it('rejects a non-owner Event Coordinator (edit power is owner-only for them)', async () => {
+      prisma.event.findUnique.mockResolvedValue(
+        draftEvent({ createdById: 'someone-else' }),
+      );
+
+      await expect(
+        service.update('evt-1', { title: 'Hijacked' }, coordinator),
+      ).rejects.toThrow(ForbiddenException);
+      expect(prisma.event.update).not.toHaveBeenCalled();
+    });
+
+    it('allows a Department Head to edit another owner event', async () => {
       prisma.event.findUnique.mockResolvedValue(draftEvent());
       prisma.event.update.mockResolvedValue(
         draftEvent({ title: 'Reviewed edit' }),
@@ -622,7 +633,7 @@ describe('EventsService', () => {
       expect(result.title).toBe('Reviewed edit');
     });
 
-    it('rejects removeCover for a non-owner without a review role', async () => {
+    it('rejects removeCover for a non-owner without an edit role', async () => {
       prisma.event.findUnique.mockResolvedValue(
         draftEvent({ coverImageUrl: '/uploads/covers/evt-1/x.png' }),
       );

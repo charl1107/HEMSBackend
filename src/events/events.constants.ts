@@ -29,6 +29,7 @@ export const CONFLICT_EXCLUDED_STATUSES = [
 
 export const SUBMIT_EVENT_ROLES = [
   'Event Coordinator',
+  'Instructor',
   'Student Officer',
   'Department Head',
   'Admin',
@@ -37,6 +38,13 @@ export const SUBMIT_EVENT_ROLES = [
 export const REVIEW_EVENT_ROLES = [
   'Department Head',
   'Event Coordinator',
+  'Admin',
+] as const;
+
+/** Roles that may edit (update / delete / cover) any event they do not own.
+ *  A Coordinator is a plain owner of their own events only. */
+export const EVENT_EDIT_ROLES = [
+  'Department Head',
   'Admin',
 ] as const;
 
