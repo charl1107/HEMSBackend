@@ -45,7 +45,7 @@ function scriptEvent(
 ): void {
   const row = {
     id: EVENT_ID,
-    status: opts.status ?? 'Approved',
+    status: opts.status ?? 'Planning',
     createdById: opts.createdById ?? ACTORS.admin.sub,
   };
   // Id-aware: any other event id must still resolve to null (404).
@@ -263,13 +263,13 @@ describe('events/:eventId/committees (mocked database)', () => {
       .expect(409);
 
     expect(res.body.message).toBe(
-      'Committee operations require event status Approved, Planning, Ongoing, or Completed (current: Cancelled)',
+      'Committee operations require event status Planning, Ongoing, or Completed (current: Cancelled)',
     );
     expect(ctx.prisma.has('committee.create')).toBe(false);
   });
 
-  it('refuses a Student probing a Draft event they do not manage with 403 before the status gate (F9)', async () => {
-    scriptEvent(ctx, { status: 'Draft', createdById: ACTORS.coordinator.sub });
+  it('refuses a Student probing a Cancelled event they do not manage with 403 before the status gate (F9)', async () => {
+    scriptEvent(ctx, { status: 'Cancelled', createdById: ACTORS.coordinator.sub });
     const bearer = await bearerFor(ctx, 'student');
 
     const res = await request(ctx.app.getHttpServer())
@@ -283,23 +283,7 @@ describe('events/:eventId/committees (mocked database)', () => {
       'Only the event owner, Admin, or Department Head can manage committees',
     );
     // F9: the 403 must not echo the event status the way the old 409 did.
-    expect(JSON.stringify(res.body)).not.toContain('Draft');
-    expect(ctx.prisma.has('committee.create')).toBe(false);
-  });
-
-  it('still applies the Draft status gate (409) to a committee manager after the RBAC check (F9)', async () => {
-    scriptEvent(ctx, { status: 'Draft', createdById: ACTORS.admin.sub });
-    const bearer = await bearerFor(ctx, 'admin');
-
-    const res = await request(ctx.app.getHttpServer())
-      .post(BASE_URL)
-      .set('Authorization', bearer)
-      .send({ name: 'Too early' })
-      .expect(409);
-
-    expect(res.body.message).toBe(
-      'Committee operations require event status Approved, Planning, Ongoing, or Completed (current: Draft)',
-    );
+    expect(JSON.stringify(res.body)).not.toContain('Cancelled');
     expect(ctx.prisma.has('committee.create')).toBe(false);
   });
 

@@ -34,6 +34,12 @@ import { createFakePrisma, type FakePrisma } from './fake-prisma.js';
 // OS's job and this harness has no global teardown hook.
 process.env.DOCUMENTS_ROOT = mkdtempSync(join(tmpdir(), 'hems-docs-'));
 
+// AuthModule resolves JWT_SECRET at AppModule compile time and rejects
+// missing/placeholder values in every environment, so the e2e suite needs a
+// deterministic non-placeholder secret without depending on the developer's
+// shell. A real .env value always wins.
+process.env.JWT_SECRET ??= 'e2e-only-secret-not-for-production';
+
 export interface TestApp {
   app: INestApplication;
   prisma: FakePrisma;

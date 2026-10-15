@@ -48,7 +48,7 @@ function eventRow(overrides: Record<string, unknown> = {}): Record<string, unkno
     venue: 'Main Hall',
     department: 'Computer Science',
     campusScope: 'OnCampus',
-    status: 'Draft',
+    status: 'Planning',
     coverImageUrl: null,
     eventTypeId: null,
     eventType: null,
@@ -172,42 +172,42 @@ describe('Events API (mocked database)', () => {
       expect(ctx.prisma.has('event.create')).toBe(false);
     });
 
-    it('a Department Head creates a Draft event (201)', async () => {
+    it('a Department Head creates a Planning event (201)', async () => {
       const res = await request(ctx.app.getHttpServer())
         .post('/events')
         .set('Authorization', await bearerFor(ctx, 'head'))
         .send({ title: 'Department forum', eventDate: '2026-06-02', venue: 'A101' })
         .expect(201);
 
-      expect(res.body.status).toBe('Draft');
+      expect(res.body.status).toBe('Planning');
       expect(res.body.createdById).toBe(ACTORS.head.sub);
       expect(res.body.conflictWarning).toBeNull();
 
       const created = ctx.prisma.callsFor('event.create')[0] as any;
-      expect(created.data.status).toBe('Draft');
+      expect(created.data.status).toBe('Planning');
       expect(created.data.eventDate).toBeInstanceOf(Date);
       expect(created.data.campusScope).toBe('OnCampus');
     });
 
-    it('an Event Coordinator creates a Draft event (201)', async () => {
+    it('an Event Coordinator creates a Planning event (201)', async () => {
       const res = await request(ctx.app.getHttpServer())
         .post('/events')
         .set('Authorization', await bearerFor(ctx, 'coordinator'))
         .send({ title: 'Hackathon', eventDate: '2026-06-03', venue: 'Lab 1' })
         .expect(201);
 
-      expect(res.body.status).toBe('Draft');
+      expect(res.body.status).toBe('Planning');
       expect(res.body.createdById).toBe(ACTORS.coordinator.sub);
     });
 
-    it('a Student Officer creates a Draft event owned by themselves (201)', async () => {
+    it('a Student Officer creates a Planning event owned by themselves (201)', async () => {
       const res = await request(ctx.app.getHttpServer())
         .post('/events')
         .set('Authorization', await bearerFor(ctx, 'officer'))
         .send({ title: 'Officers meetup', eventDate: '2026-06-04', venue: 'C1' })
         .expect(201);
 
-      expect(res.body.status).toBe('Draft');
+      expect(res.body.status).toBe('Planning');
       expect(res.body.createdById).toBe(ACTORS.officer.sub);
     });
   });
@@ -232,7 +232,7 @@ describe('Events API (mocked database)', () => {
     });
 
     it('PUT /events/:id with department: "" => 200 and the blank value is omitted from the update', async () => {
-      const state = primeEventState(ctx, eventRow({ status: 'Draft' }));
+      const state = primeEventState(ctx, eventRow({ status: 'Planning' }));
 
       const res = await request(ctx.app.getHttpServer())
         .put('/events/ev-1')
@@ -337,8 +337,8 @@ describe('Events API (mocked database)', () => {
       expect(ctx.prisma.has('event.delete')).toBe(false);
     });
 
-    it('an Event Coordinator deletes a Draft event (200)', async () => {
-      primeEventState(ctx, eventRow({ status: 'Draft' }));
+    it('an Event Coordinator deletes a Planning event (200)', async () => {
+      primeEventState(ctx, eventRow({ status: 'Planning' }));
 
       await request(ctx.app.getHttpServer())
         .delete('/events/ev-1')
@@ -365,7 +365,7 @@ describe('Events API (mocked database)', () => {
       expect(findMany.where.OR).toEqual([
         {
           status: {
-            in: ['Approved', 'Planning', 'Ongoing', 'Completed'],
+            in: ['Planning', 'Ongoing', 'Completed'],
           },
         },
         { createdById: ACTORS.student.sub },
@@ -387,7 +387,7 @@ describe('Events API (mocked database)', () => {
   });
 
   describe('event creation over HTTP', () => {
-    it('creates a Draft event (201) with a null conflict warning', async () => {
+    it('creates a Planning event (201) with a null conflict warning', async () => {
       const res = await request(ctx.app.getHttpServer())
         .post('/events')
         .set('Authorization', await bearerFor(ctx, 'coordinator'))
@@ -405,13 +405,13 @@ describe('Events API (mocked database)', () => {
         title: 'Spring Fair',
         venue: 'Quad',
         campusScope: 'OnCampus',
-        status: 'Draft',
+        status: 'Planning',
         createdById: ACTORS.coordinator.sub,
         conflictWarning: null,
       });
 
       const created = ctx.prisma.callsFor('event.create')[0] as any;
-      expect(created.data.status).toBe('Draft');
+      expect(created.data.status).toBe('Planning');
       expect(created.data.createdById).toBe(ACTORS.coordinator.sub);
       expect(ctx.prisma.has('event.findFirst')).toBe(true); // conflict probe
     });
@@ -468,42 +468,52 @@ describe('Events API (mocked database)', () => {
         .expect(403);
 
       expect(res.body.message).toBe(
-        'Only a review-role user or the event owner can edit this event',
+        'Only the event owner, an Admin or a Department Head can change event status',
       );
       expect(state.row.status).toBe('Planning');
       expect(ctx.prisma.has('event.updateMany')).toBe(false);
     });
 
-    it('Draft→Ongoing ⇒ 409 (canTransition false)', async () => {
-      primeEventState(ctx, eventRow({ status: 'Draft' }));
+    it('Planning→Completed ⇒ 409 (canTransition false)', async () => {
+      primeEventState(ctx, eventRow({ status: 'Planning' }));
 
       const res = await request(ctx.app.getHttpServer())
         .post('/events/ev-1/advance')
         .set('Authorization', await bearerFor(ctx, 'coordinator'))
-        .send({ to: 'Ongoing' })
+        .send({ to: 'Completed' })
         .expect(409);
 
       expect(res.body.message).toBe(
-        'Invalid event status transition Draft → Ongoing',
+        'Invalid event status transition Planning → Completed',
       );
       expect(ctx.prisma.has('event.updateMany')).toBe(false);
     });
 
-    it("to: 'Rejected' ⇒ 409 (lifecycle-only targets: allow only Ongoing/Completed in the DTO)", async () => {
-      // PendingApproval → Rejected WOULD pass canTransition; only the
-      // lifecycle-only target guard can refuse it, which is what pins 409 here.
-      primeEventState(ctx, eventRow({ status: 'PendingApproval' }));
+    it("to: 'Rejected' ⇒ 400 (a removed status is not an EventStatus at all)", async () => {
+      // The DTO validates `to` against the four lifecycle values, so a value
+      // from the removed approval model fails validation before the service.
+      primeEventState(ctx, eventRow({ status: 'Planning' }));
 
       const res = await request(ctx.app.getHttpServer())
         .post('/events/ev-1/advance')
         .set('Authorization', await bearerFor(ctx, 'coordinator'))
         .send({ to: 'Rejected' })
-        .expect(409);
+        .expect(400);
 
-      expect(res.body.message).toBe(
-        'Advance target must be Ongoing or Completed',
-      );
+      expect(JSON.stringify(res.body)).toContain('to');
       expect(ctx.prisma.has('event.updateMany')).toBe(false);
+    });
+
+    it('to: Cancelled is a legal transition (Planning→Cancelled ⇒ 200)', async () => {
+      const state = primeEventState(ctx, eventRow({ status: 'Planning' }));
+
+      await request(ctx.app.getHttpServer())
+        .post('/events/ev-1/advance')
+        .set('Authorization', await bearerFor(ctx, 'coordinator'))
+        .send({ to: 'Cancelled' })
+        .expect(200);
+
+      expect(state.row.status).toBe('Cancelled');
     });
 
     it('a second advance with a stale copy ⇒ 409', async () => {
@@ -543,9 +553,9 @@ describe('Events API (mocked database)', () => {
     });
   });
 
-  describe('editing is allowed only in Draft | RevisionRequired', () => {
-    it('lets the owner edit a Draft event (200)', async () => {
-      const state = primeEventState(ctx, eventRow({ status: 'Draft' }));
+  describe('editing is allowed only in Planning | Ongoing', () => {
+    it('lets the owner edit a Planning event (200)', async () => {
+      const state = primeEventState(ctx, eventRow({ status: 'Planning' }));
 
       const res = await request(ctx.app.getHttpServer())
         .put('/events/ev-1')
@@ -561,8 +571,8 @@ describe('Events API (mocked database)', () => {
       expect(update.data).toEqual({ title: 'Career Fair 2026' });
     });
 
-    it('allows editing a RevisionRequired event (200)', async () => {
-      primeEventState(ctx, eventRow({ status: 'RevisionRequired' }));
+    it('allows editing an Ongoing event (200)', async () => {
+      primeEventState(ctx, eventRow({ status: 'Ongoing' }));
 
       const res = await request(ctx.app.getHttpServer())
         .put('/events/ev-1')
@@ -573,8 +583,8 @@ describe('Events API (mocked database)', () => {
       expect(res.body.venue).toBe('Main Hall B');
     });
 
-    it('refuses to edit an Approved event with 409 (ConflictException)', async () => {
-      primeEventState(ctx, eventRow({ status: 'Approved' }));
+    it('refuses to edit a Completed event with 409 (ConflictException)', async () => {
+      primeEventState(ctx, eventRow({ status: 'Completed' }));
 
       const res = await request(ctx.app.getHttpServer())
         .put('/events/ev-1')
@@ -583,13 +593,13 @@ describe('Events API (mocked database)', () => {
         .expect(409);
 
       expect(res.body.message).toBe(
-        'Event can only be edited while Draft or RevisionRequired (current: Approved)',
+        'Event can only be edited while Planning or Ongoing (current: Completed)',
       );
       expect(ctx.prisma.has('event.update')).toBe(false);
     });
 
-    it('refuses to edit an Ongoing event with 409', async () => {
-      primeEventState(ctx, eventRow({ status: 'Ongoing' }));
+    it('refuses to edit a Cancelled event with 409', async () => {
+      primeEventState(ctx, eventRow({ status: 'Cancelled' }));
 
       const res = await request(ctx.app.getHttpServer())
         .put('/events/ev-1')
@@ -597,7 +607,7 @@ describe('Events API (mocked database)', () => {
         .send({ title: 'Too late' })
         .expect(409);
 
-      expect(res.body.message).toContain('current: Ongoing');
+      expect(res.body.message).toContain('current: Cancelled');
       expect(ctx.prisma.has('event.update')).toBe(false);
     });
 
@@ -619,16 +629,16 @@ describe('Events API (mocked database)', () => {
     });
 
     it('PUT cannot change the status: the whitelist strips it', async () => {
-      const state = primeEventState(ctx, eventRow({ status: 'Draft' }));
+      const state = primeEventState(ctx, eventRow({ status: 'Planning' }));
 
       const res = await request(ctx.app.getHttpServer())
         .put('/events/ev-1')
         .set('Authorization', await bearerFor(ctx, 'coordinator'))
-        .send({ title: 'Renamed', status: 'Approved' })
+        .send({ title: 'Renamed', status: 'Ongoing' })
         .expect(200);
 
       expect(res.body.title).toBe('Renamed');
-      expect(state.row.status).toBe('Draft');
+      expect(state.row.status).toBe('Planning');
 
       const update = ctx.prisma.callsFor('event.update')[0] as any;
       expect(update.data).toEqual({ title: 'Renamed' });
@@ -665,8 +675,11 @@ describe('Events API (mocked database)', () => {
       expect(ctx.prisma.has('event.delete')).toBe(false);
     });
 
-    it('a Draft event the caller cannot see answers 404, not 403', async () => {
-      primeEventState(ctx, eventRow({ status: 'Draft', createdById: ACTORS.coordinator.sub }));
+    it('a Cancelled event a Student cannot see answers 404, not 403', async () => {
+      primeEventState(
+        ctx,
+        eventRow({ status: 'Cancelled', createdById: ACTORS.coordinator.sub }),
+      );
 
       const res = await request(ctx.app.getHttpServer())
         .get('/events/ev-1')
@@ -744,16 +757,16 @@ describe('Events API (mocked database)', () => {
           title: 'Escalate me',
           eventDate: '2026-06-05',
           venue: 'Hall 2',
-          status: 'Approved',
+          status: 'Ongoing',
           isAdmin: true,
         })
         .expect(201);
 
-      expect(res.body.status).toBe('Draft');
+      expect(res.body.status).toBe('Planning');
       expect(res.body).not.toHaveProperty('isAdmin');
 
       const created = ctx.prisma.callsFor('event.create')[0] as any;
-      expect(created.data.status).toBe('Draft');
+      expect(created.data.status).toBe('Planning');
       expect(created.data).not.toHaveProperty('isAdmin');
     });
   });

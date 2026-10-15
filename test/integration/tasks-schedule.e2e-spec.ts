@@ -6,7 +6,7 @@
  *
  * Both services share `src/common/planning-access.ts`: the event owner, a
  * committee member of the event, Admin or Department Head may manage tasks
- * and schedule; a Cancelled/Rejected event is refused with 409.
+ * and schedule; a Cancelled event is refused with 409.
  */
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import request from 'supertest';
@@ -232,8 +232,8 @@ describe('events/:eventId/tasks and /schedule (mocked database)', () => {
     expect(ctx.prisma.has('eventTask.create')).toBe(false);
   });
 
-  it('refuses a schedule entry on a Rejected event (409) with the exact gate message', async () => {
-    scriptEvent(ctx, { status: 'Rejected' });
+  it('refuses a schedule entry on a Cancelled event (409) with the exact gate message', async () => {
+    scriptEvent(ctx, { status: 'Cancelled' });
     const bearer = await bearerFor(ctx, 'admin');
 
     const res = await request(ctx.app.getHttpServer())
@@ -247,7 +247,7 @@ describe('events/:eventId/tasks and /schedule (mocked database)', () => {
       .expect(409);
 
     expect(res.body.message).toBe(
-      'Task and schedule operations are not allowed when event status is Rejected',
+      'Task and schedule operations are not allowed when event status is Cancelled',
     );
     expect(ctx.prisma.has('eventSchedule.create')).toBe(false);
   });

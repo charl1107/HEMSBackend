@@ -21,10 +21,6 @@ model User {
   refreshTokens     RefreshToken[]
   auditLogs         AuditLog[]
   createdEvents     Event[]
-  // LEGACY: not used by the app; table kept so existing rows survive.
-  approvals         Approval[]
-  // LEGACY: not used by the app; table kept so existing rows survive.
-  participants      Participant[]
   committeeMemberships CommitteeMember[]
   assignedTasks     EventTask[]
   documents         Document[]
@@ -45,20 +41,7 @@ enum NotificationType {
   TaskAssigned
 }
 
-// LEGACY: not used by the app; table kept so existing rows survive.
-enum ApprovalAction {
-  Submitted
-  Approved
-  Rejected
-  RevisionRequested
-}
-
 enum EventStatus {
-  Draft
-  PendingApproval
-  RevisionRequired
-  Approved
-  Rejected
   Planning
   Ongoing
   Completed
@@ -84,7 +67,7 @@ model Event {
   venue         String
   department    String?
   campusScope   EventCampusScope @default(OnCampus)
-  status        EventStatus @default(Draft)
+  status        EventStatus @default(Planning)
   coverImageUrl String?
   eventTypeId   String?
   eventType     EventType?  @relation(fields: [eventTypeId], references: [id], onDelete: SetNull)
@@ -92,15 +75,9 @@ model Event {
   createdBy     User?       @relation(fields: [createdById], references: [id], onDelete: SetNull)
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
-  // LEGACY: not used by the app; table kept so existing rows survive.
-  approvals     Approval[]
-  // LEGACY: not used by the app; table kept so existing rows survive.
-  participants  Participant[]
   committees    Committee[]
   tasks         EventTask[]
   scheduleEntries EventSchedule[]
-  // LEGACY: not used by the app; table kept so existing rows survive.
-  attendance    Attendance[]
   documents     Document[]
   notifications Notification[]
 
@@ -121,32 +98,6 @@ model Notification {
   updatedAt DateTime         @updatedAt
 
   @@index([userId, createdAt])
-}
-
-// LEGACY: not used by the app; table kept so existing rows survive.
-enum AttendanceStatus {
-  Present
-  Absent
-}
-
-// LEGACY: not used by the app; table kept so existing rows survive.
-model Attendance {
-  id             String           @id @default(cuid())
-  participantId  String
-  participant    Participant      @relation(fields: [participantId], references: [id], onDelete: Cascade)
-  eventId        String
-  event          Event            @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  timeIn         DateTime?
-  timeOut        DateTime?
-  status         AttendanceStatus
-  clientRecordId String?          @unique
-  syncedAt       DateTime?
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
-
-  @@unique([eventId, participantId])
-  @@index([eventId])
-  @@index([participantId])
 }
 
 enum TaskStatus {
@@ -182,51 +133,6 @@ model EventSchedule {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  @@index([eventId])
-}
-
-// LEGACY: not used by the app; table kept so existing rows survive.
-model Approval {
-  id         String         @id @default(cuid())
-  eventId    String
-  event      Event          @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  reviewerId String?
-  reviewer   User?          @relation(fields: [reviewerId], references: [id], onDelete: SetNull)
-  action     ApprovalAction
-  comments   String?
-  createdAt  DateTime       @default(now())
-
-  @@index([eventId, createdAt])
-}
-
-// LEGACY: not used by the app; table kept so existing rows survive.
-enum ParticipantType {
-  Student
-  Staff
-  Guest
-}
-
-// LEGACY: not used by the app; table kept so existing rows survive.
-enum RegistrationStatus {
-  Registered
-}
-
-// LEGACY: not used by the app; table kept so existing rows survive.
-model Participant {
-  id                 String             @id @default(cuid())
-  eventId            String
-  event              Event              @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  userId             String?
-  user               User?              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  externalName       String?
-  participantType    ParticipantType
-  registrationStatus RegistrationStatus @default(Registered)
-  createdAt          DateTime           @default(now())
-  updatedAt          DateTime           @updatedAt
-  // LEGACY: not used by the app; table kept so existing rows survive.
-  attendance         Attendance[]
-
-  @@unique([eventId, userId])
   @@index([eventId])
 }
 

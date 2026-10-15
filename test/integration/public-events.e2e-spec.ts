@@ -3,7 +3,7 @@
  * real app stack with the database mocked. No Postgres connection is opened.
  *
  * The routes are annotated `@Public()`, so they must answer without any
- * token. The status filter (`Approved | Planning | Ongoing | Completed`) is
+ * token. The status filter (`Planning | Ongoing | Completed`) is
  * pushed into SQL by `EventsService.findPublicMany` / `findPublicOne`
  * (`where.status = { in: PUBLIC_EVENT_STATUSES }`), and the in-memory fake
  * never executes SQL — so each test asserts the `where` argument handed to
@@ -13,7 +13,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import request from 'supertest';
 import { createTestApp, type TestApp } from '../support/harness.js';
 
-const PUBLIC_STATUSES = ['Approved', 'Planning', 'Ongoing', 'Completed'];
+const PUBLIC_STATUSES = ['Planning', 'Ongoing', 'Completed'];
 
 function publicEventRow(overrides: Record<string, unknown> = {}) {
   return {
@@ -24,7 +24,7 @@ function publicEventRow(overrides: Record<string, unknown> = {}) {
     venue: 'Main Hall',
     department: 'Computer Science',
     campusScope: 'OnCampus',
-    status: 'Approved',
+    status: 'Planning',
     eventTypeId: null,
     eventType: null,
     createdById: 'u-coord',
@@ -83,21 +83,21 @@ describe('Public events catalog (mocked database)', () => {
     expect(ctx.prisma.has('user.findUnique')).toBe(false);
   });
 
-  it('a caller asking for status=Draft cannot widen the public filter', async () => {
+  it('a caller asking for status=Cancelled cannot widen the public filter', async () => {
     ctx.prisma.on('event.findMany', []);
 
     await request(ctx.app.getHttpServer())
-      .get('/public/events?status=Draft')
+      .get('/public/events?status=Cancelled')
       .expect(200);
 
     const findMany = ctx.prisma.callsFor('event.findMany')[0] as any;
     // The public base filter is always the first AND clause, so a caller can
-    // only ever narrow inside it — Draft/Rejected/Cancelled never escape.
+    // only ever narrow inside it — Cancelled never escapes.
     expect(findMany.where.AND[0]).toEqual({ status: { in: PUBLIC_STATUSES } });
     // The controller imports `EventListQueryDto` as a value, so the global
-    // ValidationPipe runs @Transform/@IsIn and `Draft` reaches the query as a
+    // ValidationPipe runs @Transform/@IsIn and `Cancelled` reaches the query as a
     // single-element array instead of being spread character-by-character.
-    expect(findMany.where.AND[1]).toEqual({ status: { in: ['Draft'] } });
+    expect(findMany.where.AND[1]).toEqual({ status: { in: ['Cancelled'] } });
   });
 
   it('an unknown status filter is rejected exactly like GET /events: 400 naming the field', async () => {
@@ -206,24 +206,6 @@ describe('Public events catalog (mocked database)', () => {
     expect(findMany.skip).toBe(1);
   });
 
-  it('?status=Rejected returns 0 items (public-status filter still AND-ed)', async () => {
-    ctx.prisma.on('event.findMany', []);
-
-    const res = await request(ctx.app.getHttpServer())
-      .get('/public/events?status=Rejected')
-      .expect(200);
-
-    const body = res.body.items;
-    expect(body).toHaveLength(0);
-
-    const findMany = ctx.prisma.callsFor('event.findMany')[0] as any;
-    // `Rejected` is a valid status, so it reaches the query — but only inside
-    // the AND: the public base filter stays first, so no Rejected event can
-    // ever satisfy both clauses.
-    expect(findMany.where.AND[0]).toEqual({ status: { in: PUBLIC_STATUSES } });
-    expect(findMany.where.AND[1]).toEqual({ status: { in: ['Rejected'] } });
-  });
-
   it('?status=Bogus returns 400', async () => {
     await request(ctx.app.getHttpServer())
       .get('/public/events?status=Bogus')
@@ -260,7 +242,7 @@ describe('Public events catalog (mocked database)', () => {
   });
 
   it('GET /public/events/:id for a hidden or unknown event => 404', async () => {
-    // `findFirst` is filtered by status in SQL, so a Draft/Rejected/Cancelled
+    // `findFirst` is filtered by status in SQL, so a Cancelled
     // event (or a missing one) comes back null and the service answers 404.
     ctx.prisma.on('event.findFirst', null);
 
@@ -416,7 +398,7 @@ describe('Public events catalog (mocked database)', () => {
   // --- F31: public schedule route ------------------------------------------
   // The public detail page reads the schedule anonymously, so the route has to
   // pass the exact same status gate as `findPublicOne`: the filter lives in
-  // SQL, and a Draft/Rejected/Cancelled or missing event answers 404 before a
+  // SQL, and a Cancelled or missing event answers 404 before a
   // single schedule row is read.
 
   it('GET /public/events/:id/schedule answers 200 without a token and gates on the public statuses in SQL', async () => {
@@ -451,19 +433,19 @@ describe('Public events catalog (mocked database)', () => {
     expect(ctx.prisma.has('user.findUnique')).toBe(false);
   });
 
-  it('GET /public/events/:id/schedule for a Draft event => 404 without reading the schedule', async () => {
-    // The fake never applies the WHERE itself, so a Draft row is modelled the
-    // way SQL sees it: the status gate makes `findFirst` come back empty.
+  it('GET /public/events/:id/schedule for a Cancelled event => 404 without reading the schedule', async () => {
+    // The fake never applies the WHERE itself, so a Cancelled row is modelled
+    // the way SQL sees it: the status gate makes `findFirst` come back empty.
     ctx.prisma.on('event.findFirst', null);
 
     const res = await request(ctx.app.getHttpServer())
-      .get('/public/events/ev-draft/schedule')
+      .get('/public/events/ev-cancelled/schedule')
       .expect(404);
 
     expect(res.body.message).toBe('Event not found');
 
     const findFirst = ctx.prisma.callsFor('event.findFirst')[0] as any;
-    expect(findFirst.where.id).toBe('ev-draft');
+    expect(findFirst.where.id).toBe('ev-cancelled');
     expect(findFirst.where.status.in).toEqual(PUBLIC_STATUSES);
 
     // The gate runs first: a hidden event never reaches the schedule table.
