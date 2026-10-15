@@ -48,11 +48,6 @@ export const ROSTER_MANAGER_ROLES = [
   'Admin',
 ] as const;
 
-export const STUDENT_SELF_REGISTER_ROLES = [
-  'Student',
-  'Student Officer',
-] as const;
-
 export const COMMITTEE_MANAGER_ROLES = [
   'Admin',
   'Department Head',

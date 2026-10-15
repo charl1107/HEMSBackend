@@ -16,7 +16,7 @@ import { AssignRoleDto, CreateUserDto, UpdateUserDto } from './dto/user.dto.js';
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
-  // Reads are open to roster managers so the participant/task pickers can
+  // Reads are open to roster managers so the task pickers can
   // resolve system users (F30, U12); every write route stays Admin-only.
   @Get()
   @Roles('Admin', ...ROSTER_MANAGER_ROLES)

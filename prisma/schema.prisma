@@ -23,6 +23,7 @@ model User {
   createdEvents     Event[]
   // LEGACY: not used by the app; table kept so existing rows survive.
   approvals         Approval[]
+  // LEGACY: not used by the app; table kept so existing rows survive.
   participants      Participant[]
   committeeMemberships CommitteeMember[]
   assignedTasks     EventTask[]
@@ -93,6 +94,7 @@ model Event {
   updatedAt     DateTime    @updatedAt
   // LEGACY: not used by the app; table kept so existing rows survive.
   approvals     Approval[]
+  // LEGACY: not used by the app; table kept so existing rows survive.
   participants  Participant[]
   committees    Committee[]
   tasks         EventTask[]
@@ -194,16 +196,19 @@ model Approval {
   @@index([eventId, createdAt])
 }
 
+// LEGACY: not used by the app; table kept so existing rows survive.
 enum ParticipantType {
   Student
   Staff
   Guest
 }
 
+// LEGACY: not used by the app; table kept so existing rows survive.
 enum RegistrationStatus {
   Registered
 }
 
+// LEGACY: not used by the app; table kept so existing rows survive.
 model Participant {
   id                 String             @id @default(cuid())
   eventId            String

@@ -9,7 +9,6 @@ import { PrismaModule } from './prisma/prisma.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { UsersModule } from './users/users.module.js';
 import { EventsModule } from './events/events.module.js';
-import { ParticipantsModule } from './participants/participants.module.js';
 import { CommitteesModule } from './committees/committees.module.js';
 import { TasksModule } from './tasks/tasks.module.js';
 import { SchedulingModule } from './scheduling/scheduling.module.js';
@@ -33,7 +32,6 @@ import { RolesGuard } from './common/guards/roles.guard.js';
     AuthModule,
     UsersModule,
     EventsModule,
-    ParticipantsModule,
     CommitteesModule,
     TasksModule,
     SchedulingModule,
