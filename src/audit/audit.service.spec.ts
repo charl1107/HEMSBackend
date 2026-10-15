@@ -68,15 +68,15 @@ describe('AuditService.list', () => {
   });
 
   it('filters by entity path segment', async () => {
-    await service.list({ entity: 'attendance', page: 1, pageSize: 20 });
+    await service.list({ entity: 'tasks', page: 1, pageSize: 20 });
 
     expect(prisma.auditLog.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: {
           OR: [
-            { path: '/attendance' },
-            { path: { startsWith: '/attendance/' } },
-            { path: { startsWith: '/attendance?' } },
+            { path: '/tasks' },
+            { path: { startsWith: '/tasks/' } },
+            { path: { startsWith: '/tasks?' } },
           ],
         },
       }),
@@ -143,8 +143,8 @@ describe('AuditService.list', () => {
     prisma.auditLog.findMany.mockResolvedValue([
       makeRow({
         id: 'log-2',
-        method: 'POST',
-        path: '/attendance/sync',
+        method: 'PATCH',
+        path: '/notifications/8f14e45f-ceea-467f-a1d0-1234567890ab/read',
         user: null,
         userId: null,
       }),
@@ -160,8 +160,8 @@ describe('AuditService.list', () => {
     const result = await service.list({ page: 1, pageSize: 20 });
 
     expect(result.items[0]).toMatchObject({
-      entity: 'attendance',
-      action: 'sync',
+      entity: 'notifications',
+      action: 'read',
       user: null,
     });
     expect(result.items[1]).toMatchObject({

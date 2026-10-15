@@ -29,27 +29,19 @@ const EVENT_ROW = {
   createdById: 'u-someone-else',
 };
 
-const REPORT_EVENT_ROW = {
-  id: 'evt-1',
-  title: 'Founders Night',
-  status: 'Completed',
-  eventDate: new Date('2026-01-15T00:00:00Z'),
-  venue: 'Main Hall',
-  description: 'An evening of student demos',
-  eventType: { name: 'Seminar' },
-};
-
-/** A participant whose name contains both a comma and a double quote. */
-const ESCAPED_NAME = 'Doe, "Jane"';
-const PARTICIPANT_ROWS = [
+/** Event rows the summary aggregates: two events over two months and scopes. */
+const SUMMARY_EVENT_ROWS = [
   {
-    id: 'p-1',
-    externalName: ESCAPED_NAME,
-    participantType: 'Student',
-    user: null,
-    attendance: [
-      { status: 'Present', timeIn: new Date('2026-01-15T08:30:00Z'), timeOut: null },
-    ],
+    status: 'Completed',
+    eventTypeId: 'type-1',
+    eventDate: new Date('2026-01-15T00:00:00Z'),
+    campusScope: 'OnCampus',
+  },
+  {
+    status: 'Planning',
+    eventTypeId: null,
+    eventDate: new Date('2026-02-02T00:00:00Z'),
+    campusScope: 'OffCampus',
   },
 ];
 
@@ -283,132 +275,62 @@ describe('documents + reports API (mocked database)', () => {
     });
   });
 
-  describe('GET /reports CSV export', () => {
-    it('rejects an unauthenticated export with 401', async () => {
+  describe('GET /reports/summary', () => {
+    it('rejects an unauthenticated request with 401', async () => {
       await request(ctx.app.getHttpServer())
-        .get('/reports/events/evt-1/participants.csv')
+        .get('/reports/summary')
         .expect(401);
-      expect(ctx.prisma.has('event.findUnique')).toBe(false);
+      expect(ctx.prisma.has('event.findMany')).toBe(false);
     });
 
-    it('exports attendance.csv as text/csv with a header row and escaped fields (Admin)', async () => {
-      ctx.prisma.on('event.findUnique', REPORT_EVENT_ROW);
-      ctx.prisma.on('participant.findMany', PARTICIPANT_ROWS);
-
-      const res = await request(ctx.app.getHttpServer())
-        .get('/reports/events/evt-1/attendance.csv')
-        .set('Authorization', await auth('admin'))
-        .expect(200);
-
-      expect(res.headers['content-type']).toMatch(/^text\/csv/);
-      expect(res.headers['content-disposition']).toContain(
-        'founders-night-attendance.csv',
-      );
-
-      const lines = res.text.split('\r\n');
-      expect(lines[0]).toBe(
-        'participantId,name,participantType,email,attendanceStatus,timeIn,timeOut,isAbsentee,absenteeReason',
-      );
-      // Comma and double quote are escaped per RFC 4180: quoted, quotes doubled.
-      expect(res.text).toContain(
-        `p-1,"${ESCAPED_NAME.replace(/"/g, '""')}",Student,,Present,`,
-      );
-      // The unescaped form must never appear raw in the payload.
-      expect(res.text).not.toContain(ESCAPED_NAME);
-    });
-
-    it('neutralises a =HYPERLINK(...) formula payload in an export with 200 (Admin)', async () => {
-      // Event title is only ever slugified into the download filename, so the
-      // formula is carried through the fields that do reach the CSV body.
-      const FORMULA = '=HYPERLINK("https://evil.example")';
-      ctx.prisma.on('event.findUnique', {
-        ...REPORT_EVENT_ROW,
-        title: FORMULA,
-      });
-      ctx.prisma.on('participant.findMany', [
-        { ...PARTICIPANT_ROWS[0], externalName: FORMULA },
+    it('returns event and task statistics for Admin', async () => {
+      ctx.prisma.on('event.findMany', SUMMARY_EVENT_ROWS);
+      ctx.prisma.on('eventType.findMany', [{ id: 'type-1', name: 'Seminar' }]);
+      ctx.prisma.on('eventTask.groupBy', [
+        { status: 'Done', _count: { _all: 1 } },
+        { status: 'Todo', _count: { _all: 1 } },
       ]);
 
       const res = await request(ctx.app.getHttpServer())
-        .get('/reports/events/evt-1/attendance.csv')
+        .get('/reports/summary')
         .set('Authorization', await auth('admin'))
         .expect(200);
 
-      expect(res.headers['content-type']).toMatch(/^text\/csv/);
-      expect(res.headers['content-disposition']).toContain(
-        'hyperlink-https-evil-example-attendance.csv',
-      );
-      // Neutralised: single-quote prefix inside the RFC 4180 quoting, quotes doubled.
-      expect(res.text).toContain(
-        `p-1,"'=HYPERLINK(""https://evil.example"")",Student,,Present,`,
-      );
-      // The raw formula must never start a field.
-      expect(res.text).not.toMatch(/(^|,)=HYPERLINK/);
+      expect(res.body).toEqual({
+        events: {
+          total: 2,
+          byStatus: { Completed: 1, Planning: 1 },
+          byType: { Seminar: 1, Uncategorized: 1 },
+          byMonth: { '2026-01': 1, '2026-02': 1 },
+          byCampusScope: { OnCampus: 1, OffCampus: 1 },
+        },
+        tasks: { total: 2, done: 1, completionRate: 50 },
+      });
     });
 
-    it('lets a Department Head export participants.csv with 200', async () => {
-      ctx.prisma.on('event.findUnique', REPORT_EVENT_ROW);
-      ctx.prisma.on('participant.findMany', PARTICIPANT_ROWS);
+    it('lets a Department Head read the summary', async () => {
+      ctx.prisma.on('event.findMany', SUMMARY_EVENT_ROWS);
+      ctx.prisma.on('eventType.findMany', [{ id: 'type-1', name: 'Seminar' }]);
+      ctx.prisma.on('eventTask.groupBy', []);
 
       const res = await request(ctx.app.getHttpServer())
-        .get('/reports/events/evt-1/participants.csv')
+        .get('/reports/summary')
         .set('Authorization', await auth('head'))
         .expect(200);
 
-      expect(res.headers['content-type']).toMatch(/^text\/csv/);
-      expect(res.text.split('\r\n')[0]).toBe(
-        'participantId,name,participantType,email,attendanceStatus,isAbsentee,absenteeReason',
-      );
-      expect(res.text).toContain(`"${ESCAPED_NAME.replace(/"/g, '""')}"`);
+      expect(res.body.events.total).toBe(2);
+      expect(res.body.tasks).toEqual({ total: 0, done: 0, completionRate: 0 });
     });
 
-    it('forbids Coordinator, Instructor, Student Officer and Student from CSV export with 403', async () => {
-      ctx.prisma.on('event.findUnique', REPORT_EVENT_ROW);
-
+    it('forbids Coordinator, Instructor, Student Officer and Student from the summary with 403', async () => {
       for (const name of NON_REPORT_ACTORS) {
         const res = await request(ctx.app.getHttpServer())
-          .get('/reports/events/evt-1/attendance.csv')
+          .get('/reports/summary')
           .set('Authorization', await auth(name))
           .expect(403);
         expect(res.body.statusCode).toBe(403);
       }
-      expect(ctx.prisma.has('event.findUnique')).toBe(false);
-      expect(ctx.prisma.has('participant.findMany')).toBe(false);
-    });
-  });
-
-  describe('GET /reports PDF export', () => {
-    it('rejects an unauthenticated export with 401', async () => {
-      await request(ctx.app.getHttpServer())
-        .get('/reports/events/evt-1/report.pdf')
-        .expect(401);
-      expect(ctx.prisma.has('event.findUnique')).toBe(false);
-    });
-
-    it('exports the report as application/pdf for Admin', async () => {
-      ctx.prisma.on('event.findUnique', REPORT_EVENT_ROW);
-
-      const res = await request(ctx.app.getHttpServer())
-        .get('/reports/events/evt-1/report.pdf')
-        .set('Authorization', await auth('admin'))
-        .expect(200);
-
-      expect(res.headers['content-type']).toBe('application/pdf');
-      expect(res.headers['content-disposition']).toContain(
-        'founders-night-report.pdf',
-      );
-      expect(Buffer.isBuffer(res.body)).toBe(true);
-      expect(res.body.subarray(0, 5).toString('ascii')).toBe('%PDF-');
-    });
-
-    it('forbids a Student from the PDF export with 403', async () => {
-      const res = await request(ctx.app.getHttpServer())
-        .get('/reports/events/evt-1/report.pdf')
-        .set('Authorization', await auth('student'))
-        .expect(403);
-
-      expect(res.body.statusCode).toBe(403);
-      expect(ctx.prisma.has('event.findUnique')).toBe(false);
+      expect(ctx.prisma.has('event.findMany')).toBe(false);
     });
   });
 

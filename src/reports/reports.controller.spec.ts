@@ -45,13 +45,7 @@ const student: AuthUser = {
   roles: ['Student'],
 };
 
-const handlers = [
-  'getSummary',
-  'getEventReport',
-  'exportAttendanceCsv',
-  'exportParticipantsCsv',
-  'exportEventPdf',
-] as const;
+const handlers = ['getSummary'] as const;
 
 describe('ReportsController RBAC (Roles metadata + RolesGuard)', () => {
   it.each(handlers)('allows Admin on %s', (name) => {
