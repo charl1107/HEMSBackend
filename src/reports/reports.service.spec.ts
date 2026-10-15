@@ -119,7 +119,7 @@ describe('ReportsService', () => {
         .mockResolvedValueOnce(2);
       prisma.event.groupBy.mockResolvedValue([
         { status: 'Completed', _count: { _all: 2 } },
-        { status: 'Draft', _count: { _all: 3 } },
+        { status: 'Planning', _count: { _all: 3 } },
       ]);
       prisma.eventType.findMany.mockResolvedValue([
         { id: 'type-1', name: 'Fair' },
@@ -135,13 +135,13 @@ describe('ReportsService', () => {
         {
           id: 'evt-2',
           title: 'Talk',
-          status: 'Draft',
+          status: 'Planning',
           eventTypeId: 'type-2',
         },
         {
           id: 'evt-3',
           title: 'Meetup',
-          status: 'Draft',
+          status: 'Planning',
           eventTypeId: null,
         },
       ]);
@@ -177,7 +177,7 @@ describe('ReportsService', () => {
         completed: 2,
         byStatus: [
           { status: 'Completed', count: 2 },
-          { status: 'Draft', count: 3 },
+          { status: 'Planning', count: 3 },
         ],
         byType: [
           { type: 'Fair', count: 1 },
@@ -225,7 +225,7 @@ describe('ReportsService', () => {
       expect(evt2).toEqual({
         eventId: 'evt-2',
         title: 'Talk',
-        status: 'Draft',
+        status: 'Planning',
         registered: 4,
         present: 3,
         absent: 1,

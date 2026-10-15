@@ -53,7 +53,7 @@ function makeStorage(): MockStorage {
 function baseEvent(overrides: Record<string, unknown> = {}) {
   return {
     id: 'evt-1',
-    status: 'Approved',
+    status: 'Planning',
     createdById: 'owner-1',
     ...overrides,
   };

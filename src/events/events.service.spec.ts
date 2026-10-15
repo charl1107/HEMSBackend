@@ -136,7 +136,7 @@ describe('EventsService', () => {
       expect(PUBLIC_EVENT_STATUSES).not.toContain('Approved');
     });
 
-    it('detail query filters by id AND public status (Draft never returns)', async () => {
+    it('detail query filters by id AND public status (non-public events never return)', async () => {
       prisma.event.findFirst.mockResolvedValue(null);
 
       await expect(service.findPublicOne('draft-id')).rejects.toThrow(
@@ -366,16 +366,16 @@ describe('EventsService', () => {
       );
     });
 
-    it('keeps Rejected events from non-owner peers', async () => {
+    it('keeps Cancelled events from non-owner peers', async () => {
       prisma.event.findUnique.mockResolvedValue(
-        draftEvent({ status: 'Rejected' }),
+        draftEvent({ status: 'Cancelled' }),
       );
 
       await expect(service.findOneVisible('evt-1', stranger)).rejects.toThrow(
         NotFoundException,
       );
       await expect(service.findOneVisible('evt-1', reviewer)).resolves.toMatchObject(
-        { status: 'Rejected' },
+        { status: 'Cancelled' },
       );
     });
   });

@@ -49,7 +49,7 @@ function makePrisma(): MockPrisma {
 function baseEvent(overrides: Record<string, unknown> = {}) {
   return {
     id: 'evt-1',
-    status: 'Approved' as EventStatus,
+    status: 'Planning' as EventStatus,
     createdById: 'owner-1',
     ...overrides,
   };
@@ -194,9 +194,9 @@ describe('TasksService', () => {
       expect(prisma.eventTask.create).not.toHaveBeenCalled();
     });
 
-    it('allows create when event is Draft (planning-anytime choice)', async () => {
+    it('allows create when event is Planning (planning-anytime choice)', async () => {
       prisma.event.findUnique.mockResolvedValue(
-        baseEvent({ status: 'Draft' }),
+        baseEvent({ status: 'Planning' }),
       );
 
       await expect(
