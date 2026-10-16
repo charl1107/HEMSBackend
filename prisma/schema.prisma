@@ -80,8 +80,6 @@ model Event {
   description   String?
   eventDate     DateTime    @db.Date
   venue         String
-  // Removed from the app; the column itself stays in the database by design.
-  department    String?
   campusScope   EventCampusScope @default(OnCampus)
   status        EventStatus @default(Planning)
   coverImageUrl String?

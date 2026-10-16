@@ -22,7 +22,6 @@ function publicEventRow(overrides: Record<string, unknown> = {}) {
     description: 'Campus open day',
     eventDate: '2026-06-01T00:00:00.000Z',
     venue: 'Main Hall',
-    department: 'Computer Science',
     campusScope: 'OnCampus',
     status: 'Planning',
     eventTypeId: null,
@@ -277,7 +276,7 @@ describe('Public events catalog (mocked database)', () => {
   // `frontend/src/views/public/PublicEventDetailView.vue` (+ eventType.name,
   // rendered by `EventCard`/`StatusBadge` props). The plan's candidate
   // `endDate` has no column on the Prisma Event model at all, and
-  // campusScope / department / createdAt / updatedAt / eventTypeId are never
+  // campusScope / createdAt / updatedAt / eventTypeId are never
   // read on a public page (EventCard only receives them from authenticated
   // views) — so none of them may leave the server. `status` and `id` stay:
   // the status gate, the badge and the detail link need them.

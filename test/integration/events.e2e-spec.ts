@@ -46,7 +46,6 @@ function eventRow(overrides: Record<string, unknown> = {}): Record<string, unkno
     description: 'Annual career fair',
     eventDate: new Date('2026-06-01T00:00:00.000Z'),
     venue: 'Main Hall',
-    department: 'Computer Science',
     campusScope: 'OnCampus',
     status: 'Planning',
     coverImageUrl: null,
@@ -240,12 +239,12 @@ describe('Events API (mocked database)', () => {
         .send({ title: 'Renamed', department: 'Student Affairs' })
         .expect(200);
 
-      // The stored column is untouched: only title was written.
-      expect(res.body.department).toBe('Computer Science');
+      // The payload never reaches Prisma, and the stored row only got the title.
+      expect(res.body).not.toHaveProperty('department');
 
       const update = ctx.prisma.callsFor('event.update')[0] as any;
       expect(update.data).not.toHaveProperty('department');
-      expect(state.row.department).toBe('Computer Science');
+      expect(state.row.title).toBe('Renamed');
     });
   });
 
