@@ -8,7 +8,7 @@ import {
   Post,
 } from '@nestjs/common';
 import { Roles } from '../common/decorators/roles.decorator.js';
-import { ROSTER_MANAGER_ROLES } from '../events/events.constants.js';
+import { DIRECTORY_READ_ROLES } from '../events/events.constants.js';
 import { UsersService } from './users.service.js';
 import { AssignRoleDto, CreateUserDto, UpdateUserDto } from './dto/user.dto.js';
 
@@ -16,16 +16,16 @@ import { AssignRoleDto, CreateUserDto, UpdateUserDto } from './dto/user.dto.js';
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
-  // Reads are open to roster managers so the participant/task pickers can
-  // resolve system users (F30, U12); every write route stays Admin-only.
+  // Reads are open to directory readers so pickers can resolve system users
+  // (F30, U12); every write route stays Admin-only.
   @Get()
-  @Roles('Admin', ...ROSTER_MANAGER_ROLES)
+  @Roles('Admin', ...DIRECTORY_READ_ROLES)
   findAll() {
     return this.usersService.findAll();
   }
 
   @Get(':id')
-  @Roles('Admin', ...ROSTER_MANAGER_ROLES)
+  @Roles('Admin', ...DIRECTORY_READ_ROLES)
   findOne(@Param('id') id: string) {
     return this.usersService.findOne(id);
   }

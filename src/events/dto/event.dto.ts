@@ -30,12 +30,6 @@ export class CreateEventDto {
   venue!: string;
 
   @IsOptional()
-  @Transform(({ value }) => (value === '' ? undefined : value))
-  @IsString()
-  @MinLength(1)
-  department?: string;
-
-  @IsOptional()
   @IsString()
   campusScope?: 'OnCampus' | 'OffCampus';
 
@@ -62,12 +56,6 @@ export class UpdateEventDto {
   @IsString()
   @MinLength(1)
   venue?: string;
-
-  @IsOptional()
-  @Transform(({ value }) => (value === '' ? undefined : value))
-  @IsString()
-  @MinLength(1)
-  department?: string;
 
   @IsOptional()
   @IsString()

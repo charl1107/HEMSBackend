@@ -21,10 +21,15 @@ model User {
   refreshTokens     RefreshToken[]
   auditLogs         AuditLog[]
   createdEvents     Event[]
+  // LEGACY: not used by the app; table kept so existing rows survive.
   approvals         Approval[]
+  // LEGACY: not used by the app; table kept so existing rows survive.
   participants      Participant[]
+  // LEGACY: not used by the app; table kept so existing rows survive.
   committeeMemberships CommitteeMember[]
+  // LEGACY: not used by the app; table kept so existing rows survive.
   assignedTasks     EventTask[]
+  // LEGACY: not used by the app; table kept so existing rows survive.
   documents         Document[]
   notifications     Notification[]
   createdAt         DateTime          @default(now())
@@ -43,6 +48,7 @@ enum NotificationType {
   TaskAssigned
 }
 
+// LEGACY: not used by the app; table kept so existing rows survive.
 enum ApprovalAction {
   Submitted
   Approved
@@ -51,11 +57,6 @@ enum ApprovalAction {
 }
 
 enum EventStatus {
-  Draft
-  PendingApproval
-  RevisionRequired
-  Approved
-  Rejected
   Planning
   Ongoing
   Completed
@@ -79,9 +80,8 @@ model Event {
   description   String?
   eventDate     DateTime    @db.Date
   venue         String
-  department    String?
   campusScope   EventCampusScope @default(OnCampus)
-  status        EventStatus @default(Draft)
+  status        EventStatus @default(Planning)
   coverImageUrl String?
   eventTypeId   String?
   eventType     EventType?  @relation(fields: [eventTypeId], references: [id], onDelete: SetNull)
@@ -89,12 +89,19 @@ model Event {
   createdBy     User?       @relation(fields: [createdById], references: [id], onDelete: SetNull)
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
+  // LEGACY: not used by the app; table kept so existing rows survive.
   approvals     Approval[]
+  // LEGACY: not used by the app; table kept so existing rows survive.
   participants  Participant[]
+  // LEGACY: not used by the app; table kept so existing rows survive.
   committees    Committee[]
+  // LEGACY: not used by the app; table kept so existing rows survive.
   tasks         EventTask[]
+  // LEGACY: not used by the app; table kept so existing rows survive.
   scheduleEntries EventSchedule[]
+  // LEGACY: not used by the app; table kept so existing rows survive.
   attendance    Attendance[]
+  // LEGACY: not used by the app; table kept so existing rows survive.
   documents     Document[]
   notifications Notification[]
 
@@ -117,11 +124,13 @@ model Notification {
   @@index([userId, createdAt])
 }
 
+// LEGACY: not used by the app; table kept so existing rows survive.
 enum AttendanceStatus {
   Present
   Absent
 }
 
+// LEGACY: not used by the app; table kept so existing rows survive.
 model Attendance {
   id             String           @id @default(cuid())
   participantId  String
@@ -141,12 +150,14 @@ model Attendance {
   @@index([participantId])
 }
 
+// LEGACY: not used by the app; table kept so existing rows survive.
 enum TaskStatus {
   Todo
   InProgress
   Done
 }
 
+// LEGACY: not used by the app; table kept so existing rows survive.
 model EventTask {
   id               String     @id @default(cuid())
   eventId          String
@@ -164,6 +175,7 @@ model EventTask {
   @@index([assignedToUserId])
 }
 
+// LEGACY: not used by the app; table kept so existing rows survive.
 model EventSchedule {
   id           String   @id @default(cuid())
   eventId      String
@@ -177,6 +189,7 @@ model EventSchedule {
   @@index([eventId])
 }
 
+// LEGACY: not used by the app; table kept so existing rows survive.
 model Approval {
   id         String         @id @default(cuid())
   eventId    String
@@ -190,16 +203,19 @@ model Approval {
   @@index([eventId, createdAt])
 }
 
+// LEGACY: not used by the app; table kept so existing rows survive.
 enum ParticipantType {
   Student
   Staff
   Guest
 }
 
+// LEGACY: not used by the app; table kept so existing rows survive.
 enum RegistrationStatus {
   Registered
 }
 
+// LEGACY: not used by the app; table kept so existing rows survive.
 model Participant {
   id                 String             @id @default(cuid())
   eventId            String
@@ -211,12 +227,14 @@ model Participant {
   registrationStatus RegistrationStatus @default(Registered)
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
+  // LEGACY: not used by the app; table kept so existing rows survive.
   attendance         Attendance[]
 
   @@unique([eventId, userId])
   @@index([eventId])
 }
 
+// LEGACY: not used by the app; table kept so existing rows survive.
 model Committee {
   id          String            @id @default(cuid())
   eventId     String
@@ -231,6 +249,7 @@ model Committee {
   @@index([eventId])
 }
 
+// LEGACY: not used by the app; table kept so existing rows survive.
 model CommitteeMember {
   id          String   @id @default(cuid())
   committeeId String
@@ -269,6 +288,7 @@ model RefreshToken {
   @@index([userId])
 }
 
+// LEGACY: not used by the app; table kept so existing rows survive.
 enum DocType {
   Proposal
   Program
@@ -277,6 +297,7 @@ enum DocType {
   Report
 }
 
+// LEGACY: not used by the app; table kept so existing rows survive.
 model Document {
   id               String   @id @default(cuid())
   eventId          String

@@ -19,33 +19,20 @@ import type { Request } from 'express';
 import { Roles } from '../common/decorators/roles.decorator.js';
 import type { AuthUser } from '../common/auth-user.js';
 import { EventsService } from './events.service.js';
-import { ApprovalsService } from '../approvals/approvals.service.js';
-import {
-  ApproveEventDto,
-  RejectEventDto,
-  RequestRevisionDto,
-  SubmitForApprovalDto,
-} from '../approvals/dto/approval.dto.js';
 import {
   AdvanceEventDto,
   CreateEventDto,
   EventListQueryDto,
   UpdateEventDto,
 } from './dto/event.dto.js';
-import {
-  REVIEW_EVENT_ROLES,
-  SUBMIT_EVENT_ROLES,
-} from './events.constants.js';
+import { SUBMIT_EVENT_ROLES } from './events.constants.js';
 import { COVER_MAX_BYTES, type CoverUploadFile } from './cover-file.js';
 
 type RequestWithUser = Request & { user?: AuthUser };
 
 @Controller('events')
 export class EventsController {
-  constructor(
-    private readonly eventsService: EventsService,
-    private readonly approvalsService: ApprovalsService,
-  ) {}
+  constructor(private readonly eventsService: EventsService) {}
 
   @Get()
   findAll(@Query() query: EventListQueryDto, @Req() req: RequestWithUser) {
@@ -107,8 +94,9 @@ export class EventsController {
     return this.eventsService.removeCover(id, req.user);
   }
 
-  /** Lifecycle advance (Planning → Ongoing → Completed, F17). Authorization
-   *  lives in the service: owner or a REVIEW_EVENT_ROLES holder. */
+  /** Lifecycle advance along EVENT_TRANSITIONS (F17): ongoing, completed,
+   *  cancel and resume. Authorization lives in the service: the event
+   *  owner, Admin or Department Head. */
   @Post(':id/advance')
   @HttpCode(200)
   advance(
@@ -120,65 +108,5 @@ export class EventsController {
       throw new ForbiddenException('Authentication required');
     }
     return this.eventsService.advance(id, dto.to, req.user);
-  }
-
-  @Post(':id/submit')
-  submit(
-    @Param('id') id: string,
-    @Body() dto: SubmitForApprovalDto,
-    @Req() req: RequestWithUser,
-  ) {
-    if (!req.user) {
-      throw new ForbiddenException('Authentication required');
-    }
-    return this.approvalsService.submit(id, req.user, dto);
-  }
-
-  @Post(':id/approve')
-  @Roles(...REVIEW_EVENT_ROLES)
-  approve(
-    @Param('id') id: string,
-    @Body() dto: ApproveEventDto,
-    @Req() req: RequestWithUser,
-  ) {
-    if (!req.user) {
-      throw new ForbiddenException('Authentication required');
-    }
-    return this.approvalsService.approve(id, req.user, dto);
-  }
-
-  @Post(':id/reject')
-  @Roles(...REVIEW_EVENT_ROLES)
-  reject(
-    @Param('id') id: string,
-    @Body() dto: RejectEventDto,
-    @Req() req: RequestWithUser,
-  ) {
-    if (!req.user) {
-      throw new ForbiddenException('Authentication required');
-    }
-    return this.approvalsService.reject(id, req.user, dto);
-  }
-
-  @Post(':id/request-revision')
-  @Roles(...REVIEW_EVENT_ROLES)
-  requestRevision(
-    @Param('id') id: string,
-    @Body() dto: RequestRevisionDto,
-    @Req() req: RequestWithUser,
-  ) {
-    if (!req.user) {
-      throw new ForbiddenException('Authentication required');
-    }
-    return this.approvalsService.requestRevision(id, req.user, dto);
-  }
-
-  @Get(':id/approval-history')
-  async approvalHistory(@Param('id') id: string, @Req() req: RequestWithUser) {
-    if (!req.user) {
-      throw new ForbiddenException('Authentication required');
-    }
-    await this.eventsService.findOneVisible(id, req.user);
-    return this.approvalsService.findApprovalHistory(id);
   }
 }

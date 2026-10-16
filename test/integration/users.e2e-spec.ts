@@ -4,7 +4,7 @@
  * with the database mocked. No Postgres connection is opened.
  *
  * Focus: the role matrix (F30). Reads (`GET /users`, `GET /users/:id`) are
- * open to `Admin` + `ROSTER_MANAGER_ROLES` (Event Coordinator, Instructor,
+ * open to `Admin` + `DIRECTORY_READ_ROLES` (Event Coordinator, Instructor,
  * Student Officer, Department Head); every write route stays Admin-only, so
  * non-Admin writers get 403, nobody gets 401 without a token, and no
  * password/hash field may ever appear in a response body (asserted
@@ -30,8 +30,8 @@ const NON_ADMIN_ACTORS: ActorName[] = [
   'student',
 ];
 
-/** Roster-manager roles that must be able to READ the directory (F30). */
-const ROSTER_READ_ACTORS: ActorName[] = [
+/** Directory-reader roles that must be able to READ the directory (F30). */
+const DIRECTORY_READ_ACTORS: ActorName[] = [
   'head',
   'coordinator',
   'instructor',
@@ -113,7 +113,7 @@ describe('users API (mocked database)', () => {
   });
 
   describe('GET /users', () => {
-    it('lets a Department Head list users with 200 (ROSTER_MANAGER_ROLES, F30)', async () => {
+    it('lets a Department Head list users with 200 (DIRECTORY_READ_ROLES, F30)', async () => {
       ctx.prisma.on('user.findMany', [userRowFor('student')]);
 
       const res = await request(ctx.app.getHttpServer())
@@ -129,7 +129,7 @@ describe('users API (mocked database)', () => {
       });
     });
 
-    it('lets an Instructor list users with 200 (ROSTER_MANAGER_ROLES, F30)', async () => {
+    it('lets an Instructor list users with 200 (DIRECTORY_READ_ROLES, F30)', async () => {
       ctx.prisma.on('user.findMany', [userRowFor('coordinator')]);
 
       const res = await request(ctx.app.getHttpServer())
@@ -141,8 +141,8 @@ describe('users API (mocked database)', () => {
       expect(res.body[0]).toMatchObject({ id: ACTORS.coordinator.sub });
     });
 
-    it('lets every roster-manager role read the directory with 200', async () => {
-      for (const name of ROSTER_READ_ACTORS) {
+    it('lets every directory-reader role read the directory with 200', async () => {
+      for (const name of DIRECTORY_READ_ACTORS) {
         ctx.prisma.on('user.findMany', [userRowFor('student')]);
         await request(ctx.app.getHttpServer())
           .get('/users')
@@ -208,7 +208,7 @@ describe('users API (mocked database)', () => {
       };
     });
 
-    it('lets an Instructor read a single user with 200 (ROSTER_MANAGER_ROLES, F30)', async () => {
+    it('lets an Instructor read a single user with 200 (DIRECTORY_READ_ROLES, F30)', async () => {
       const res = await request(ctx.app.getHttpServer())
         .get(`/users/${ACTORS.admin.sub}`)
         .set('Authorization', await auth('instructor'))
@@ -222,7 +222,7 @@ describe('users API (mocked database)', () => {
       expectNoPasswordKeys(res.body);
     });
 
-    it('lets a Department Head read a single user with 200 (ROSTER_MANAGER_ROLES, F30)', async () => {
+    it('lets a Department Head read a single user with 200 (DIRECTORY_READ_ROLES, F30)', async () => {
       const res = await request(ctx.app.getHttpServer())
         .get(`/users/${ACTORS.instructor.sub}`)
         .set('Authorization', await auth('head'))
@@ -288,7 +288,7 @@ describe('users API (mocked database)', () => {
         firstName: 'New',
         lastName: 'User',
         roles: ['Instructor'],
-        mustChangePassword: false,
+        mustChangePassword: true,
       });
       expect(res.body).not.toHaveProperty('password');
       expect(res.body).not.toHaveProperty('passwordHash');
@@ -299,6 +299,7 @@ describe('users API (mocked database)', () => {
       };
       expect(String(write.data.passwordHash)).toMatch(/^\$2[aby]\$/);
       expect(write.data.passwordHash).not.toBe(NEW_USER_BODY.password);
+      expect(write.data.mustChangePassword).toBe(true);
     });
 
     it('rejects a missing or malformed email with 400 before reaching the service', async () => {

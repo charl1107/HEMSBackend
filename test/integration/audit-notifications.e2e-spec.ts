@@ -234,8 +234,8 @@ describe('audit + notifications API (mocked database)', () => {
           id: 'n-1',
           userId: ACTORS.student.sub,
           eventId: null,
-          type: 'EventApproved',
-          message: 'Your event was approved',
+          type: 'TaskAssigned',
+          message: 'You were assigned a task',
           isRead: false,
           createdAt: new Date('2026-01-10T08:00:00Z'),
           updatedAt: new Date('2026-01-10T08:00:00Z'),
@@ -255,7 +255,7 @@ describe('audit + notifications API (mocked database)', () => {
       expect(res.body[0]).toMatchObject({
         id: 'n-1',
         userId: ACTORS.student.sub,
-        message: 'Your event was approved',
+        message: 'You were assigned a task',
       });
     });
   });
@@ -276,8 +276,8 @@ describe('audit + notifications API (mocked database)', () => {
         id: 'n-1',
         userId: ACTORS.student.sub,
         eventId: null,
-        type: 'EventApproved',
-        message: 'Your event was approved',
+        type: 'TaskAssigned',
+        message: 'You were assigned a task',
         isRead: true,
         createdAt: new Date('2026-01-10T08:00:00Z'),
         updatedAt: new Date('2026-01-11T08:00:00Z'),

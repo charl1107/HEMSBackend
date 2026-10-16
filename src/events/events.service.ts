@@ -16,9 +16,9 @@ import type { Page } from '../common/dto/page-query.dto.js';
 import type { AuthUser } from '../common/auth-user.js';
 import {
   EDITABLE_EVENT_STATUSES,
+  EVENT_EDIT_ROLES,
   PUBLIC_EVENT_STATUSES,
   REVIEW_EVENT_ROLES,
-  SUBMIT_EVENT_ROLES,
 } from './events.constants.js';
 import { canTransition } from './event-state.js';
 import {
@@ -65,8 +65,12 @@ export type PublicEvent = Pick<
   'id' | 'title' | 'description' | 'eventDate' | 'venue' | 'coverImageUrl' | 'status'
 > & { eventType: { name: string } | null };
 
-/** Statuses POST /events/:id/advance may move an event to (F17 lifecycle). */
-const ADVANCE_TARGET_STATUSES = ['Ongoing', 'Completed'] as const;
+/**
+ * Roles that may drive POST /events/:id/advance on events they do not own.
+ * Event Coordinators are deliberately excluded: in the four-status rework
+ * they are plain owners of their own events and lost cross-event power.
+ */
+const ADVANCE_EVENT_ROLES = ['Admin', 'Department Head'] as const;
 
 export type EventWithRelations = Event & { eventType: EventType | null };
 
@@ -117,12 +121,6 @@ export class EventsService {
     if (event.createdById && event.createdById === user.userId) {
       return true;
     }
-    if (
-      event.status === 'PendingApproval' &&
-      SUBMIT_EVENT_ROLES.some((role) => user.roles.includes(role))
-    ) {
-      return true;
-    }
     return (PUBLIC_EVENT_STATUSES as readonly string[]).includes(event.status);
   }
 
@@ -131,9 +129,6 @@ export class EventsService {
       return {};
     }
     const allowed: Event['status'][] = [...PUBLIC_EVENT_STATUSES];
-    if (SUBMIT_EVENT_ROLES.some((role) => user.roles.includes(role))) {
-      allowed.push('PendingApproval');
-    }
     const filters: Prisma.EventWhereInput[] = [{ status: { in: allowed } }];
     if (user.userId) {
       filters.push({ createdById: user.userId });
@@ -202,9 +197,8 @@ export class EventsService {
         description: dto.description,
         eventDate,
         venue,
-        department: dto.department?.trim() || null,
         campusScope: dto.campusScope ?? 'OnCampus',
-        status: 'Draft',
+        status: 'Planning',
         eventTypeId: dto.eventTypeId ?? null,
         createdById: userId ?? null,
       },
@@ -227,10 +221,6 @@ export class EventsService {
     this.assertCanEdit(event, user);
     this.assertEditable(event);
     const venue = dto.venue !== undefined ? dto.venue.trim() : event.venue;
-    const department =
-      dto.department !== undefined
-        ? dto.department.trim() || null
-        : event.department;
     const eventDate =
       dto.eventDate !== undefined ? new Date(dto.eventDate) : event.eventDate;
     if (dto.eventTypeId) {
@@ -241,7 +231,6 @@ export class EventsService {
     if (dto.description !== undefined) data.description = dto.description;
     if (dto.eventDate !== undefined) data.eventDate = eventDate;
     if (dto.venue !== undefined) data.venue = venue;
-    if (dto.department !== undefined) data.department = department;
     if (dto.campusScope !== undefined) data.campusScope = dto.campusScope;
     if (dto.eventTypeId !== undefined) {
       data.eventType = dto.eventTypeId
@@ -272,12 +261,13 @@ export class EventsService {
   }
 
   /**
-   * POST /events/:id/advance — moves an event along the lifecycle
-   * Planning → Ongoing → Completed (F17). Authorization mirrors update():
-   * owner or a REVIEW_EVENT_ROLES holder. The write is guarded with the
-   * optimistic-concurrency where-clause from approvals.service.ts
-   * `transition()`: it names the status read from the row, so a concurrent
-   * change between read and write matches no row and yields 409.
+   * POST /events/:id/advance — drives an event along EVENT_TRANSITIONS:
+   * Planning → Ongoing → Completed, plus cancel (any live status →
+   * Cancelled) and resume (Cancelled → Planning). Authorization: owner,
+   * Admin or Department Head — not Event Coordinator. The write is guarded
+   * with an optimistic-concurrency where-clause: it names the status read
+   * from the row, so a concurrent change between read and write matches no
+   * row and yields 409.
    */
   async advance(
     id: string,
@@ -285,10 +275,7 @@ export class EventsService {
     user: AuthUser,
   ): Promise<EventWithRelations> {
     const event = await this.findOne(id);
-    this.assertCanEdit(event, user);
-    if (!(ADVANCE_TARGET_STATUSES as readonly string[]).includes(to)) {
-      throw new ConflictException('Advance target must be Ongoing or Completed');
-    }
+    this.assertCanAdvance(event, user);
     if (!canTransition(event.status, to)) {
       throw new ConflictException(
         `Invalid event status transition ${event.status} → ${to}`,
@@ -408,12 +395,24 @@ export class EventsService {
 
   private assertCanEdit(event: EventWithRelations, user?: AuthUser): void {
     const isOwner = Boolean(user && event.createdById === user.userId);
-    const isReviewer = Boolean(
-      user && REVIEW_EVENT_ROLES.some((role) => user.roles.includes(role)),
+    const isPrivileged = Boolean(
+      user && EVENT_EDIT_ROLES.some((role) => user.roles.includes(role)),
     );
-    if (!isOwner && !isReviewer) {
+    if (!isOwner && !isPrivileged) {
       throw new ForbiddenException(
-        'Only a review-role user or the event owner can edit this event',
+        'Only a Department Head, an Admin or the event owner can edit this event',
+      );
+    }
+  }
+
+  private assertCanAdvance(event: EventWithRelations, user: AuthUser): void {
+    const isOwner = event.createdById === user.userId;
+    const isPrivileged = ADVANCE_EVENT_ROLES.some((role) =>
+      user.roles.includes(role),
+    );
+    if (!isOwner && !isPrivileged) {
+      throw new ForbiddenException(
+        'Only the event owner, an Admin or a Department Head can change event status',
       );
     }
   }
@@ -423,7 +422,7 @@ export class EventsService {
       !(EDITABLE_EVENT_STATUSES as readonly string[]).includes(event.status)
     ) {
       throw new ConflictException(
-        `Event can only be edited while Draft or RevisionRequired (current: ${event.status})`,
+        `Event can only be edited while Planning or Ongoing (current: ${event.status})`,
       );
     }
   }

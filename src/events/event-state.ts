@@ -1,11 +1,6 @@
 import type { EventStatus } from '@prisma/client';
 
 export const EVENT_STATUSES = [
-  'Draft',
-  'PendingApproval',
-  'RevisionRequired',
-  'Approved',
-  'Rejected',
   'Planning',
   'Ongoing',
   'Completed',
@@ -15,20 +10,15 @@ export const EVENT_STATUSES = [
 export const EVENT_TRANSITIONS: Readonly<
   Record<EventStatus, readonly EventStatus[]>
 > = {
-  Draft: ['PendingApproval', 'Cancelled'],
-  PendingApproval: ['Approved', 'Rejected', 'RevisionRequired', 'Cancelled'],
-  RevisionRequired: ['PendingApproval', 'Cancelled'],
-  Approved: ['Planning', 'Cancelled'],
   Planning: ['Ongoing', 'Cancelled'],
   Ongoing: ['Completed', 'Cancelled'],
   Completed: [],
-  Rejected: [],
-  Cancelled: [],
+  Cancelled: ['Planning'],
 };
 
 export function canTransition(from: EventStatus, to: EventStatus): boolean {
   if (from === to) {
     return false;
   }
-  return (EVENT_TRANSITIONS[from] ?? []).includes(to);
+  return EVENT_TRANSITIONS[from].includes(to);
 }

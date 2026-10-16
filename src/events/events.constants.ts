@@ -1,18 +1,12 @@
 import type { EventCampusScope, EventStatus } from '@prisma/client';
 
 export const PUBLIC_EVENT_STATUSES = [
-  'Approved',
   'Planning',
   'Ongoing',
   'Completed',
 ] as const satisfies readonly EventStatus[];
 
 export const ALL_EVENT_STATUSES = [
-  'Draft',
-  'PendingApproval',
-  'RevisionRequired',
-  'Approved',
-  'Rejected',
   'Planning',
   'Ongoing',
   'Completed',
@@ -25,17 +19,17 @@ export const EVENT_CAMPUS_SCOPES = [
 ] as const satisfies readonly EventCampusScope[];
 
 export const EDITABLE_EVENT_STATUSES = [
-  'Draft',
-  'RevisionRequired',
+  'Planning',
+  'Ongoing',
 ] as const satisfies readonly EventStatus[];
 
 export const CONFLICT_EXCLUDED_STATUSES = [
   'Cancelled',
-  'Rejected',
 ] as const satisfies readonly EventStatus[];
 
 export const SUBMIT_EVENT_ROLES = [
   'Event Coordinator',
+  'Instructor',
   'Student Officer',
   'Department Head',
   'Admin',
@@ -47,41 +41,17 @@ export const REVIEW_EVENT_ROLES = [
   'Admin',
 ] as const;
 
-export const ROSTER_MANAGER_ROLES = [
+/** Roles that may edit (update / delete / cover) any event they do not own.
+ *  A Coordinator is a plain owner of their own events only. */
+export const EVENT_EDIT_ROLES = [
+  'Department Head',
+  'Admin',
+] as const;
+
+export const DIRECTORY_READ_ROLES = [
   'Event Coordinator',
   'Instructor',
   'Student Officer',
   'Department Head',
   'Admin',
-] as const;
-
-export const ROSTER_EVENT_STATUSES = [
-  'Approved',
-  'Planning',
-  'Ongoing',
-  'Completed',
-] as const satisfies readonly EventStatus[];
-
-export const STUDENT_SELF_REGISTER_ROLES = [
-  'Student',
-  'Student Officer',
-] as const;
-
-export const COMMITTEE_MANAGER_ROLES = [
-  'Admin',
-  'Department Head',
-] as const;
-
-export const ATTENDANCE_SUPERVISOR_ROLES = [
-  'Event Coordinator',
-  'Instructor',
-  'Student Officer',
-  'Admin',
-  'Department Head',
-] as const;
-
-export const ATTENDANCE_LATE_FIX_ROLES = [
-  'Event Coordinator',
-  'Admin',
-  'Department Head',
 ] as const;

@@ -5,20 +5,11 @@ import { canTransition, EVENT_STATUSES, EVENT_TRANSITIONS } from './event-state.
 const ALL: EventStatus[] = [...EVENT_STATUSES];
 
 const VALID: ReadonlyArray<readonly [EventStatus, EventStatus]> = [
-  ['Draft', 'PendingApproval'],
-  ['Draft', 'Cancelled'],
-  ['PendingApproval', 'Approved'],
-  ['PendingApproval', 'Rejected'],
-  ['PendingApproval', 'RevisionRequired'],
-  ['PendingApproval', 'Cancelled'],
-  ['RevisionRequired', 'PendingApproval'],
-  ['RevisionRequired', 'Cancelled'],
-  ['Approved', 'Planning'],
-  ['Approved', 'Cancelled'],
   ['Planning', 'Ongoing'],
   ['Planning', 'Cancelled'],
   ['Ongoing', 'Completed'],
   ['Ongoing', 'Cancelled'],
+  ['Cancelled', 'Planning'],
 ];
 
 const validSet = new Set(VALID.map(([from, to]) => `${from}|${to}`));
@@ -27,9 +18,27 @@ const pairs: Array<[EventStatus, EventStatus, boolean]> = ALL.flatMap((from) =>
   ALL.map((to) => [from, to, validSet.has(`${from}|${to}`)] as const),
 );
 
-describe('canTransition (table-driven, all 9 statuses)', () => {
+describe('canTransition (table-driven, all 4 statuses)', () => {
+  it('EVENT_STATUSES lists exactly Planning, Ongoing, Completed, Cancelled', () => {
+    expect([...EVENT_STATUSES]).toEqual([
+      'Planning',
+      'Ongoing',
+      'Completed',
+      'Cancelled',
+    ]);
+  });
+
+  it('EVENT_TRANSITIONS maps exactly the four statuses', () => {
+    expect(EVENT_TRANSITIONS).toEqual({
+      Planning: ['Ongoing', 'Cancelled'],
+      Ongoing: ['Completed', 'Cancelled'],
+      Completed: [],
+      Cancelled: ['Planning'],
+    });
+  });
+
   it('covers every ordered status pair', () => {
-    expect(pairs).toHaveLength(9 * 9);
+    expect(pairs).toHaveLength(4 * 4);
   });
 
   it.each(pairs)('%s → %s allows=%s', (from, to, expected) => {
@@ -37,42 +46,16 @@ describe('canTransition (table-driven, all 9 statuses)', () => {
   });
 
   it('never allows self transitions', () => {
-    for (const status of ALL) {
-      expect(canTransition(status, status)).toBe(false);
-    }
+    expect(canTransition('Planning', 'Planning')).toBe(false);
   });
 
-  it('never allows skipping PendingApproval approval steps', () => {
-    expect(canTransition('Draft', 'Approved')).toBe(false);
-    expect(canTransition('Draft', 'Planning')).toBe(false);
-    expect(canTransition('PendingApproval', 'Planning')).toBe(false);
-    expect(canTransition('PendingApproval', 'Ongoing')).toBe(false);
-    expect(canTransition('RevisionRequired', 'Approved')).toBe(false);
+  it('allows resuming a cancelled event', () => {
+    expect(canTransition('Cancelled', 'Planning')).toBe(true);
   });
 
-  it('keeps terminal states terminal', () => {
-    expect(EVENT_TRANSITIONS.Completed).toEqual([]);
-    expect(EVENT_TRANSITIONS.Rejected).toEqual([]);
-    expect(EVENT_TRANSITIONS.Cancelled).toEqual([]);
-    for (const terminal of ['Completed', 'Rejected', 'Cancelled'] as const) {
-      for (const to of ALL) {
-        expect(canTransition(terminal, to)).toBe(false);
-      }
+  it('keeps Completed terminal', () => {
+    for (const to of ALL) {
+      expect(canTransition('Completed', to)).toBe(false);
     }
-  });
-
-  it('allows Cancelled from non-terminal pre-completed states', () => {
-    for (const from of [
-      'Draft',
-      'PendingApproval',
-      'RevisionRequired',
-      'Approved',
-      'Planning',
-      'Ongoing',
-    ] as const) {
-      expect(canTransition(from, 'Cancelled')).toBe(true);
-    }
-    expect(canTransition('Completed', 'Cancelled')).toBe(false);
-    expect(canTransition('Rejected', 'Cancelled')).toBe(false);
   });
 });
