@@ -1,131 +1,84 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# HEMS Backend
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+REST API for the Hospitality Management Event System (HEMS). Built with NestJS 12, Prisma 6, and PostgreSQL. Pairs with the Vue 3 frontend in `../HEMSFrontend`.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Features
 
-## Description
+- **Auth** — JWT access tokens + refresh-token rotation (hashed at rest), bcrypt password hashing, forced password change flow, login rate-limited to 10 req/min per IP
+- **Events** — CRUD with status workflow (`Planning → Ongoing → Completed / Cancelled`), event types, on/off-campus scope, cover images, public catalog endpoints
+- **Roles** — `Admin`, `Department Head`, `Event Coordinator`, `Instructor`, `Student Officer`, `Student`; enforced per-route with a `@Roles()` decorator
+- **Notifications** — event submitted/approved/rejected, revision requested, task assigned
+- **Reports** — aggregate reporting endpoints for the frontend reports dashboard
+- **Audit log** — request-level audit trail (method, path, body, status, user), viewable by admins
+- **Security** — Helmet, CORS allowlist, throttling, validation via class-validator (see `src/security.ts`)
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+## Project structure
 
-## Project setup
-
-```bash
-$ npm install
+```
+src/
+  auth/           JWT strategy, login/refresh/logout, guards
+  users/          User CRUD, roles, student directory
+  events/         Events, public catalog, cover uploads
+  notifications/  User notifications
+  reports/        Reporting aggregates
+  audit/          Audit log queries
+  health/         Health check endpoint
+  prisma/         PrismaService module
+  common/         Shared decorators/guards (e.g. @Roles)
+  security.ts     App hardening (helmet, CORS, throttler)
+prisma/
+  schema.prisma   Data model
+  seed.ts         Seeds roles (+ admin if env vars set)
 ```
 
-## Compile and run the project
+Legacy tables (participants, attendance, approvals, tasks, schedules, committees, documents) are kept for data compatibility but are not used by the current app — see `prisma/schema.prisma` comments.
+
+## Setup
 
 ```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+npm install            # also runs `prisma generate` via postinstall
+cp .env.example .env   # then fill in real values
 ```
 
-## Run tests
+Required env vars (see `.env.example` for the full list and comments):
+
+| Variable | Purpose |
+|---|---|
+| `DATABASE_URL`, `DIRECT_URL` | PostgreSQL connection strings (Prisma) |
+| `JWT_SECRET` | Required; rejects empty/placeholder values in all environments |
+| `FRONTEND_URL` | Comma-separated CORS allowlist; **required in production**, `*` is rejected |
+| `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD` | Optional; enables admin provisioning in the seed |
+
+## Database
 
 ```bash
-# unit tests
-$ npm run test
+npx prisma migrate dev      # apply migrations in development
+npm run prisma:deploy       # apply migrations in production
+npx prisma db seed          # seed roles (+ admin if SEED_ADMIN_* is set)
+```
 
-# e2e tests
-$ npm run test:e2e
+## Running
 
-# test coverage
-$ npm run test:cov
+```bash
+npm run start:dev    # watch mode (http://localhost:3000)
+npm run build        # compile to dist/
+npm run start:prod   # prisma generate + migrate deploy + run dist/main
+```
+
+## Tests & linting
+
+```bash
+npm test             # unit tests (Vitest)
+npm run test:e2e     # end-to-end tests
+npm run test:cov     # coverage
+npm run lint         # oxlint (type-aware)
+npm run format       # prettier
 ```
 
 ## Deployment
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+npm run deploy       # @nestjs/mau
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
-
-## Environment & security
-
-- `JWT_SECRET` — required in production (bootstrap fails without it).
-- `FRONTEND_URL` — comma-separated CORS allowlist (e.g. `https://app.example.com`). Required in production; `*` is rejected. When unset outside production, CORS is disabled (same-origin only).
-- `POST /auth/login` is rate-limited to 10 requests/minute per IP (`@nestjs/throttler`, in-process memory storage — use Redis storage if you scale to multiple instances).
-- HTTPS/TLS termination is handled at the deploy platform (Vercel/ingress) — enable it at deploy time, not in this app.
-
-## Observability
-
-In production applications, observability is essential for understanding how your system behaves, detecting issues early, and maintaining reliable performance.
-
-[NestJS Observe](https://observe.nestjs.com) automatically instruments your NestJS application, giving you deep visibility into your system with minimal setup:
-
-- **Distributed tracing:** Follow requests across services and understand how they flow through your system.
-- **Waterfall analysis:** Visualize request execution and identify slow operations, bottlenecks, and unexpected delays.
-- **Performance analysis:** Analyze application performance in real time and quickly pinpoint areas that need optimization.
-- **Metrics:** Track key application and infrastructure metrics to understand system health and performance trends.
-- **Logging:** Centralize and correlate logs with traces and other telemetry to make debugging easier.
-- **Error tracking:** Detect errors quickly and investigate their root causes with the surrounding context.
-- **SLA monitoring:** Track service-level objectives and identify when your application is approaching or exceeding defined thresholds.
-- **Alarms and alerts:** Set up alerts for critical errors, performance degradation, SLA violations, and other anomalies so your team can react quickly.
-
-To add it to this project:
-
-```bash
-$ npm install @nestjs/observe
-```
-
-Then follow the [setup guide](https://docs.nestjs.com/observability/overview) - it takes a single import and an app key.
-
-The free plan needs no payment details and covers 300,000 events a month. You can also browse the [live demo](https://www.observe-demo.nestjs.com/dashboard) first - the whole dashboard over a busy service's data, with nothing to install.
-
-## Resources
-
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Auto-instrument your application with [NestJS Observe](https://observe.nestjs.com). Distributed tracing, metrics, and logging made easy. Error tracking and performance monitoring for your NestJS applications.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+HTTPS/TLS termination is handled at the deploy platform (Vercel/ingress) — enable it at deploy time, not in this app.
